@@ -1,7 +1,10 @@
+import { useEffect } from 'react';
+import { useRedirect } from 'react-admin';
 import { List, Datagrid, TextField, EmailField, DateField } from 'react-admin';
 import { ListActions } from '../components/ListActions';
+import { userStore } from '../userStore';
 
-export const UserList = () => (
+const UserListContent = () => (
   <List actions={<ListActions />}>
     <Datagrid>
       <TextField source="id" label="ID" />
@@ -13,4 +16,21 @@ export const UserList = () => (
     </Datagrid>
   </List>
 );
+
+export const UserList = () => {
+  const redirect = useRedirect();
+  const user = userStore.getUser();
+
+  useEffect(() => {
+    if (!user || user.role !== 'superuser') {
+      redirect('/');
+    }
+  }, [user, redirect]);
+
+  if (!user || user.role !== 'superuser') {
+    return null;
+  }
+
+  return <UserListContent />;
+};
 

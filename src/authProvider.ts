@@ -1,18 +1,27 @@
 import { AuthProvider } from 'react-admin';
 import { API_URL, API_KEY } from './config';
 import { LoginParams, ApiError } from './types';
+import { userStore } from './userStore';
 
 interface AuthData {
   success: boolean;
   access_token: string;
   refresh_token: string;
   expires_in?: number;
+}
+
+interface UserMeResponse {
   user: {
     id: string;
     name?: string;
     email: string;
     phone?: string;
     userType?: string;
+    points?: number;
+    role?: string;
+    registrationDate?: string;
+    lastLogin?: string;
+    isActive?: boolean;
   };
 }
 
@@ -24,6 +33,24 @@ const getAuthData = (): AuthData | null => {
   } catch {
     return null;
   }
+};
+
+const fetchUserMe = async (accessToken: string): Promise<UserMeResponse> => {
+  const response = await fetch(`${API_URL}/user/me`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': API_KEY,
+      'Authorization': `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Failed to fetch user data');
+  }
+
+  return await response.json() as UserMeResponse;
 };
 
 const refreshAccessToken = async (): Promise<AuthData> => {
@@ -49,7 +76,21 @@ const refreshAccessToken = async (): Promise<AuthData> => {
   if (!newAuthData.success || !newAuthData.access_token) {
     throw new Error('Invalid refresh token response');
   }
-  localStorage.setItem('auth', JSON.stringify(newAuthData));
+  
+  localStorage.setItem('auth', JSON.stringify({
+    success: newAuthData.success,
+    access_token: newAuthData.access_token,
+    refresh_token: newAuthData.refresh_token,
+    expires_in: newAuthData.expires_in,
+  }));
+
+  try {
+    const userMeData = await fetchUserMe(newAuthData.access_token);
+    userStore.setUser(userMeData.user);
+  } catch (error) {
+    console.error('Failed to fetch user data after token refresh:', error);
+  }
+
   return newAuthData;
 };
 
@@ -91,13 +132,27 @@ export const authProvider: AuthProvider = {
       throw new Error('Ошибка авторизации');
     }
 
-    localStorage.setItem('auth', JSON.stringify(authData));
+    localStorage.setItem('auth', JSON.stringify({
+      success: authData.success,
+      access_token: authData.access_token,
+      refresh_token: authData.refresh_token,
+      expires_in: authData.expires_in,
+    }));
+
+    try {
+      const userMeData = await fetchUserMe(authData.access_token);
+      userStore.setUser(userMeData.user);
+    } catch (error) {
+      console.error('Failed to fetch user data:', error);
+    }
+
     window.location.replace('/');
     return Promise.resolve();
   },
 
   logout: () => {
     localStorage.removeItem('auth');
+    userStore.clearUser();
     window.location.replace('/login');
     return Promise.resolve();
   },
@@ -147,17 +202,38 @@ export const authProvider: AuthProvider = {
     return Promise.resolve();
   },
 
-  getIdentity: () => {
-    const authData = getAuthData();
-    if (!authData?.user) {
+  getIdentity: async () => {
+    let user = userStore.getUser();
+    
+    if (!user) {
+      const authData = getAuthData();
+      if (authData?.access_token) {
+        try {
+          const userMeData = await fetchUserMe(authData.access_token);
+          user = userMeData.user;
+          userStore.setUser(user);
+        } catch (error) {
+          console.error('Failed to fetch user data:', error);
+          return Promise.reject();
+        }
+      } else {
+        return Promise.reject();
+      }
+    }
+
+    if (!user) {
       return Promise.reject();
     }
+
     return Promise.resolve({
-      id: authData.user.id,
-      fullName: authData.user.name || authData.user.email,
+      id: user.id,
+      fullName: user.name || user.email,
     });
   },
 
-  getPermissions: () => Promise.resolve(''),
+  getPermissions: async () => {
+    const user = userStore.getUser();
+    return user?.role || '';
+  },
 };
 

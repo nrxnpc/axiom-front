@@ -1,6 +1,7 @@
 import { DataProvider, fetchUtils } from 'react-admin';
 import { API_URL, API_KEY } from './config';
 import { ApiError } from './types';
+import { userStore } from './userStore';
 
 const getAuthToken = (): string => {
   const auth = localStorage.getItem('auth');
@@ -13,6 +14,24 @@ const getAuthToken = (): string => {
   } catch {
     return API_KEY;
   }
+};
+
+const handleUnauthorized = () => {
+  localStorage.removeItem('auth');
+  userStore.clearUser();
+  window.location.replace('/login');
+};
+
+const isPermissionError = (error: unknown): boolean => {
+  if (error && typeof error === 'object' && 'error' in error) {
+    const errorMessage = (error as { error: unknown }).error;
+    if (typeof errorMessage === 'string') {
+      return errorMessage.includes('Only companies') || 
+             errorMessage.includes('access') || 
+             errorMessage.includes('permission');
+    }
+  }
+  return false;
 };
 
 const httpClient = async (url: string, options: fetchUtils.Options = {}) => {
@@ -35,14 +54,21 @@ const httpClient = async (url: string, options: fetchUtils.Options = {}) => {
   const json = await response.json().catch(() => ({}));
   
   if (!response.ok) {
+    if (response.status === 401) {
+      if (!isPermissionError(json)) {
+        handleUnauthorized();
+        const error = new Error('Сессия истекла. Пожалуйста, войдите снова.') as ApiError;
+        error.status = 401;
+        error.body = json;
+        throw error;
+      }
+    }
+    
     const error = new Error(json.message || json.error || 'Request failed') as ApiError;
     error.status = response.status;
     error.body = json;
     
-    if (response.status === 401 && json.error && typeof json.error === 'string' && 
-        (json.error.includes('Only companies') || 
-         json.error.includes('access') || 
-         json.error.includes('permission'))) {
+    if (response.status === 401 && isPermissionError(json)) {
       error.isPermissionError = true;
     }
     
@@ -73,9 +99,9 @@ export const dataProvider: DataProvider = {
     
     try {
       const { json } = await httpClient(url);
-    
-    let data: Record<string, unknown>[] = [];
-    let total = 0;
+      
+      let data: Record<string, unknown>[] = [];
+      let total = 0;
     
     if (Array.isArray(json)) {
       data = json;

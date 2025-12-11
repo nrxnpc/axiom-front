@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Admin, Layout, AppBar, TitlePortal, Resource, CustomRoutes } from 'react-admin';
 import { Route, RouterProvider, createBrowserRouter } from 'react-router-dom';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
@@ -34,6 +34,8 @@ import { StatisticsList } from './statistics/StatisticsList';
 import { ReportList } from './reports/ReportList';
 import { ReportCreate } from './reports/ReportCreate';
 import { UserList } from './users/UserList';
+import { UserMeTest } from './users/UserMeTest';
+import { userStore } from './userStore';
 
 const MyAppBar = () => (
   <AppBar>
@@ -43,85 +45,108 @@ const MyAppBar = () => (
 
 const MyLayout = (props: React.ComponentProps<typeof Layout>) => <Layout {...props} appBar={MyAppBar} />;
 
-const AdminApp = () => (
-  <Admin
-    dataProvider={dataProvider}
-    authProvider={authProvider}
-    i18nProvider={i18nProvider}
-    loginPage={LoginPage}
-    dashboard={Dashboard}
-    layout={MyLayout}
-    title="Axiom Admin"
-    requireAuth
-  >
-    <Resource
-      name="cars"
-      list={CarList}
-      create={CarCreate}
-      edit={CarEdit}
-      options={{ label: 'Автомобили' }}
-      icon={DirectionsCarIcon}
-    />
-    <Resource
-      name="products"
-      list={ProductList}
-      create={ProductCreate}
-      edit={ProductEdit}
-      options={{ label: 'Товары' }}
-      icon={ShoppingCartIcon}
-    />
-    <Resource
-      name="news"
-      list={NewsList}
-      create={NewsCreate}
-      edit={NewsEdit}
-      options={{ label: 'Новости' }}
-      icon={ArticleIcon}
-    />
-    <Resource
-      name="campaigns"
-      list={CampaignList}
-      create={CampaignCreate}
-      edit={CampaignEdit}
-      options={{ label: 'Промо-кампании' }}
-      icon={CampaignIcon}
-    />
-    <Resource
-      name="company/analytics"
-      list={AnalyticsList}
-      options={{ label: 'Аналитика' }}
-      icon={AnalyticsIcon}
-    />
-    <Resource
-      name="user/transactions"
-      list={TransactionList}
-      options={{ label: 'Транзакции' }}
-      icon={PaymentIcon}
-    />
-    <Resource
-      name="statistics"
-      list={StatisticsList}
-      options={{ label: 'Статистика' }}
-      icon={AssessmentIcon}
-    />
-    <Resource
-      name="reports"
-      list={ReportList}
-      create={ReportCreate}
-      options={{ label: 'Репорты' }}
-      icon={FlagIcon}
-    />
-    <Resource
-      name="admin/users"
-      list={UserList}
-      options={{ label: 'Пользователи' }}
-      icon={PeopleIcon}
-    />
-    <CustomRoutes noLayout>
-      <Route path="/register" element={<RegisterPage />} />
-    </CustomRoutes>
-  </Admin>
-);
+const AdminApp = () => {
+  const [isSuperuser, setIsSuperuser] = useState(false);
+
+  useEffect(() => {
+    const checkUserRole = () => {
+      const user = userStore.getUser();
+      setIsSuperuser(user?.role === 'superuser');
+    };
+
+    checkUserRole();
+
+    const handleFocus = () => checkUserRole();
+    window.addEventListener('focus', handleFocus);
+
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  return (
+    <Admin
+      dataProvider={dataProvider}
+      authProvider={authProvider}
+      i18nProvider={i18nProvider}
+      loginPage={LoginPage}
+      dashboard={Dashboard}
+      layout={MyLayout}
+      title="Axiom Admin"
+      requireAuth
+    >
+      <Resource
+        name="cars"
+        list={CarList}
+        create={CarCreate}
+        edit={CarEdit}
+        options={{ label: 'Автомобили' }}
+        icon={DirectionsCarIcon}
+      />
+      <Resource
+        name="products"
+        list={ProductList}
+        create={ProductCreate}
+        edit={ProductEdit}
+        options={{ label: 'Товары' }}
+        icon={ShoppingCartIcon}
+      />
+      <Resource
+        name="news"
+        list={NewsList}
+        create={NewsCreate}
+        edit={NewsEdit}
+        options={{ label: 'Новости' }}
+        icon={ArticleIcon}
+      />
+      <Resource
+        name="campaigns"
+        list={CampaignList}
+        create={CampaignCreate}
+        edit={CampaignEdit}
+        options={{ label: 'Промо-кампании' }}
+        icon={CampaignIcon}
+      />
+      <Resource
+        name="company/analytics"
+        list={AnalyticsList}
+        options={{ label: 'Аналитика' }}
+        icon={AnalyticsIcon}
+      />
+      <Resource
+        name="user/transactions"
+        list={TransactionList}
+        options={{ label: 'Транзакции' }}
+        icon={PaymentIcon}
+      />
+      <Resource
+        name="statistics"
+        list={StatisticsList}
+        options={{ label: 'Статистика' }}
+        icon={AssessmentIcon}
+      />
+      <Resource
+        name="reports"
+        list={ReportList}
+        create={ReportCreate}
+        options={{ label: 'Репорты' }}
+        icon={FlagIcon}
+      />
+      {isSuperuser && (
+        <Resource
+          name="admin/users"
+          list={UserList}
+          options={{ label: 'Пользователи' }}
+          icon={PeopleIcon}
+        />
+      )}
+      <CustomRoutes>
+        <Route path="/user-me-test" element={<UserMeTest />} />
+      </CustomRoutes>
+      <CustomRoutes noLayout>
+        <Route path="/register" element={<RegisterPage />} />
+      </CustomRoutes>
+    </Admin>
+  );
+};
 
 function App() {
   const router = createBrowserRouter([

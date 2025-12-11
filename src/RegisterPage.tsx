@@ -14,6 +14,7 @@ import { dataProvider } from './dataProvider';
 import { authProvider } from './authProvider';
 import { i18nProvider } from './i18nProvider';
 import { API_URL, API_KEY } from './config';
+import { userStore } from './userStore';
 
 const RegisterForm = () => {
   const [error, setError] = useState<string | null>(null);
@@ -76,14 +77,33 @@ const RegisterForm = () => {
 
       const authData = await registerAndLogin();
       
-      const authDataToSave = {
+      localStorage.setItem('auth', JSON.stringify({
         success: authData.success,
         access_token: authData.access_token,
         refresh_token: authData.refresh_token,
         expires_in: authData.expires_in,
-        user: authData.user,
-      };
-      localStorage.setItem('auth', JSON.stringify(authDataToSave));
+      }));
+
+      setLoadingStep('Загрузка данных пользователя...');
+      try {
+        const userMeResponse = await fetch(`${API_URL}/user/me`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY,
+            'Authorization': `Bearer ${authData.access_token}`,
+          },
+        });
+
+        if (userMeResponse.ok) {
+          const userMeData = await userMeResponse.json();
+          if (userMeData.user) {
+            userStore.setUser(userMeData.user);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data:', error);
+      }
       
       const savedAuth = localStorage.getItem('auth');
       if (!savedAuth) {
