@@ -146,14 +146,12 @@ export const authProvider: AuthProvider = {
       console.error('Failed to fetch user data:', error);
     }
 
-    window.location.replace('/');
     return Promise.resolve();
   },
 
   logout: () => {
-    localStorage.removeItem('auth');
     userStore.clearUser();
-    window.location.replace('/login');
+    localStorage.removeItem('auth');
     return Promise.resolve();
   },
 
@@ -181,8 +179,8 @@ export const authProvider: AuthProvider = {
       return refreshAccessToken()
         .then(() => Promise.resolve())
         .catch(() => {
+          userStore.clearUser();
           localStorage.removeItem('auth');
-          window.location.replace('/login');
           return Promise.reject();
         });
     }
@@ -195,8 +193,8 @@ export const authProvider: AuthProvider = {
         return Promise.resolve();
       }
       
+      userStore.clearUser();
       localStorage.removeItem('auth');
-      window.location.replace('/login');
       return Promise.reject();
     }
     return Promise.resolve();

@@ -17,8 +17,8 @@ const getAuthToken = (): string => {
 };
 
 const handleUnauthorized = () => {
-  localStorage.removeItem('auth');
   userStore.clearUser();
+  localStorage.removeItem('auth');
   window.location.replace('/login');
 };
 
@@ -83,7 +83,37 @@ export const dataProvider: DataProvider = {
     let url: string;
     
     if (resource === 'admin/users') {
-      url = `${API_URL}/${resource}`;
+      const { page, perPage } = params.pagination;
+      const limit = perPage;
+      const offset = (page - 1) * perPage;
+      
+      const query = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+      
+      if (params.filter) {
+        if (params.filter.name) {
+          query.set('name', params.filter.name);
+        }
+        if (params.filter.email) {
+          query.set('email', params.filter.email);
+        }
+        if (params.filter.phone) {
+          query.set('phone', params.filter.phone);
+        }
+        if (params.filter.role) {
+          query.set('role', params.filter.role);
+        }
+        if (params.filter.userType) {
+          query.set('userType', params.filter.userType);
+        }
+        if (params.filter.isActive !== undefined && params.filter.isActive !== null) {
+          query.set('isActive', params.filter.isActive.toString());
+        }
+      }
+      
+      url = `${API_URL}/${resource}?${query.toString()}`;
     } else {
       const { page, perPage } = params.pagination;
       const limit = perPage;
@@ -103,7 +133,10 @@ export const dataProvider: DataProvider = {
       let data: Record<string, unknown>[] = [];
       let total = 0;
     
-    if (Array.isArray(json)) {
+    if (resource === 'admin/users' && json && json.users && Array.isArray(json.users)) {
+      data = json.users;
+      total = json.pagination?.total || json.users.length;
+    } else if (Array.isArray(json)) {
       data = json;
       total = json.length;
     } else if (json && Array.isArray(json.data)) {

@@ -49,17 +49,26 @@ const AdminApp = () => {
   const [isSuperuser, setIsSuperuser] = useState(false);
 
   useEffect(() => {
-    const checkUserRole = () => {
-      const user = userStore.getUser();
+    const updateRole = (user: ReturnType<typeof userStore.getUser>) => {
       setIsSuperuser(user?.role === 'superuser');
     };
 
-    checkUserRole();
+    updateRole(userStore.getUser());
 
-    const handleFocus = () => checkUserRole();
-    window.addEventListener('focus', handleFocus);
+    const unsubscribe = userStore.subscribe(updateRole);
 
-    return () => window.removeEventListener('focus', handleFocus);
+    const checkAfterAuth = async () => {
+      try {
+        await authProvider.getIdentity();
+      } catch {
+      }
+    };
+    
+    checkAfterAuth();
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   return (

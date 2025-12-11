@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -17,6 +18,7 @@ import { API_URL, API_KEY } from './config';
 import { userStore } from './userStore';
 
 const RegisterForm = () => {
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<string>('');
@@ -110,7 +112,7 @@ const RegisterForm = () => {
         throw new Error('Не удалось сохранить токены');
       }
       
-      window.location.replace('/');
+      navigate('/');
         } catch (err) {
           const error = err as Error;
           setError(error.message || 'Ошибка регистрации');
