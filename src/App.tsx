@@ -9,6 +9,7 @@ import AnalyticsIcon from '@mui/icons-material/Analytics';
 import PaymentIcon from '@mui/icons-material/Payment';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import FlagIcon from '@mui/icons-material/Flag';
+import PeopleIcon from '@mui/icons-material/People';
 import { authProvider } from './authProvider';
 import { dataProvider } from './dataProvider';
 import { LoginPage } from './LoginPage';
@@ -32,6 +33,7 @@ import { TransactionList } from './transactions/TransactionList';
 import { StatisticsList } from './statistics/StatisticsList';
 import { ReportList } from './reports/ReportList';
 import { ReportCreate } from './reports/ReportCreate';
+import { UserList } from './users/UserList';
 
 const MyAppBar = () => (
   <AppBar>
@@ -108,6 +110,12 @@ const AdminApp = () => (
       create={ReportCreate}
       options={{ label: 'Репорты' }}
       icon={FlagIcon}
+    />
+    <Resource
+      name="admin/users"
+      list={UserList}
+      options={{ label: 'Пользователи' }}
+      icon={PeopleIcon}
     />
     <CustomRoutes noLayout>
       <Route path="/register" element={<RegisterPage />} />

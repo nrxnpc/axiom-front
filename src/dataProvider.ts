@@ -54,16 +54,22 @@ const httpClient = async (url: string, options: fetchUtils.Options = {}) => {
 
 export const dataProvider: DataProvider = {
   getList: async (resource, params) => {
-    const { page, perPage } = params.pagination;
-    const limit = perPage;
-    const offset = (page - 1) * perPage;
+    let url: string;
     
-    const query = new URLSearchParams({
-      limit: limit.toString(),
-      offset: offset.toString(),
-    });
-    
-    const url = `${API_URL}/${resource}?${query.toString()}`;
+    if (resource === 'admin/users') {
+      url = `${API_URL}/${resource}`;
+    } else {
+      const { page, perPage } = params.pagination;
+      const limit = perPage;
+      const offset = (page - 1) * perPage;
+      
+      const query = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+      
+      url = `${API_URL}/${resource}?${query.toString()}`;
+    }
     
     try {
       const { json } = await httpClient(url);
@@ -92,14 +98,14 @@ export const dataProvider: DataProvider = {
     }
     
       return {
-        data,
+        data: data as any,
         total,
       };
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError.isPermissionError) {
         return {
-          data: [],
+          data: [] as any,
           total: 0,
         };
       }
@@ -144,7 +150,7 @@ export const dataProvider: DataProvider = {
     const query = new URLSearchParams({
       limit: limit.toString(),
       offset: offset.toString(),
-      [params.target]: params.id,
+      [params.target]: String(params.id),
     });
     
     const url = `${API_URL}/${resource}?${query.toString()}`;
@@ -152,14 +158,14 @@ export const dataProvider: DataProvider = {
       const { json } = await httpClient(url);
       
       return {
-        data: json.data || json,
+        data: (json.data || json) as any,
         total: json.total || json.length || 0,
       };
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError.isPermissionError) {
         return {
-          data: [],
+          data: [] as any,
           total: 0,
         };
       }
@@ -226,7 +232,7 @@ export const dataProvider: DataProvider = {
       await httpClient(url, {
         method: 'DELETE',
       });
-      return { data: { id: params.id } };
+      return { data: { id: params.id } as any };
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError.isPermissionError) {
