@@ -46,6 +46,12 @@ const fetchUserMe = async (accessToken: string): Promise<UserMeResponse> => {
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      userStore.clearUser();
+      localStorage.removeItem('auth');
+      window.location.replace('/login');
+      throw new Error('Сессия истекла');
+    }
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || errorData.message || 'Failed to fetch user data');
   }
@@ -176,13 +182,10 @@ export const authProvider: AuthProvider = {
     }
     
     if (status === 401) {
-      return refreshAccessToken()
-        .then(() => Promise.resolve())
-        .catch(() => {
-          userStore.clearUser();
-          localStorage.removeItem('auth');
-          return Promise.reject();
-        });
+      userStore.clearUser();
+      localStorage.removeItem('auth');
+      window.location.replace('/login');
+      return Promise.reject();
     }
     if (status === 403) {
       const errorBody = apiError.body;

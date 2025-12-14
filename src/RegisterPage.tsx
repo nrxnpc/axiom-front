@@ -97,6 +97,13 @@ const RegisterForm = () => {
           },
         });
 
+        if (userMeResponse.status === 401) {
+          userStore.clearUser();
+          localStorage.removeItem('auth');
+          window.location.replace('/login');
+          return;
+        }
+        
         if (userMeResponse.ok) {
           const userMeData = await userMeResponse.json();
           if (userMeData.user) {

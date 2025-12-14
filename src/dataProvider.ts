@@ -22,18 +22,6 @@ const handleUnauthorized = () => {
   window.location.replace('/login');
 };
 
-const isPermissionError = (error: unknown): boolean => {
-  if (error && typeof error === 'object' && 'error' in error) {
-    const errorMessage = (error as { error: unknown }).error;
-    if (typeof errorMessage === 'string') {
-      return errorMessage.includes('Only companies') || 
-             errorMessage.includes('access') || 
-             errorMessage.includes('permission');
-    }
-  }
-  return false;
-};
-
 const httpClient = async (url: string, options: fetchUtils.Options = {}) => {
   if (!options.headers) {
     options.headers = new Headers({ Accept: 'application/json' });
@@ -51,26 +39,28 @@ const httpClient = async (url: string, options: fetchUtils.Options = {}) => {
     body: options.body,
   });
   
-  const json = await response.json().catch(() => ({}));
+  let json: any = {};
+  try {
+    const text = await response.text();
+    if (text && text.trim()) {
+      json = JSON.parse(text);
+    }
+  } catch (parseError) {
+    json = {};
+  }
   
   if (!response.ok) {
     if (response.status === 401) {
-      if (!isPermissionError(json)) {
-        handleUnauthorized();
-        const error = new Error('Сессия истекла. Пожалуйста, войдите снова.') as ApiError;
-        error.status = 401;
-        error.body = json;
-        throw error;
-      }
+      handleUnauthorized();
+      const error = new Error('Сессия истекла. Пожалуйста, войдите снова.') as ApiError;
+      error.status = 401;
+      error.body = json;
+      throw error;
     }
     
     const error = new Error(json.message || json.error || 'Request failed') as ApiError;
     error.status = response.status;
     error.body = json;
-    
-    if (response.status === 401 && isPermissionError(json)) {
-      error.isPermissionError = true;
-    }
     
     throw error;
   }
@@ -114,6 +104,8 @@ export const dataProvider: DataProvider = {
       }
       
       url = `${API_URL}/${resource}?${query.toString()}`;
+    } else if (resource === 'statistics' || resource === 'company/analytics') {
+      url = `${API_URL}/${resource}`;
     } else {
       const { page, perPage } = params.pagination;
       const limit = perPage;
@@ -133,9 +125,24 @@ export const dataProvider: DataProvider = {
       let data: Record<string, unknown>[] = [];
       let total = 0;
     
-    if (resource === 'admin/users' && json && json.users && Array.isArray(json.users)) {
+    if (resource === 'statistics' || resource === 'company/analytics') {
+      if (json && typeof json === 'object' && !Array.isArray(json) && Object.keys(json).length > 0) {
+        const dataWithId = { ...json, id: resource === 'statistics' ? 'statistics' : 'analytics' };
+        data = [dataWithId];
+        total = 1;
+      } else {
+        data = [];
+        total = 0;
+      }
+    } else if (resource === 'admin/users' && json && json.users && Array.isArray(json.users)) {
       data = json.users;
       total = json.pagination?.total || json.users.length;
+    } else if (resource === 'user/transactions' && json && json.transactions && Array.isArray(json.transactions)) {
+      data = json.transactions;
+      total = json.pagination?.total || json.transactions.length;
+    } else if (resource === 'campaigns' && json && json.campaigns && Array.isArray(json.campaigns)) {
+      data = json.campaigns;
+      total = json.pagination?.total || json.campaigns.length;
     } else if (Array.isArray(json)) {
       data = json;
       total = json.length;
@@ -148,9 +155,6 @@ export const dataProvider: DataProvider = {
     } else if (json && json.products && Array.isArray(json.products)) {
       data = json.products;
       total = json.pagination?.total || json.pagination?.count || json.products.length;
-    } else if ((resource === 'company/analytics' || resource === 'statistics') && json && typeof json === 'object') {
-      data = [json];
-      total = 1;
     } else {
       data = [];
       total = 0;
