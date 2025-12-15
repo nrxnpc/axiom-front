@@ -1,7 +1,7 @@
 import { Create, SimpleForm, TextInput, NumberInput, required } from 'react-admin';
 
 export const ProductCreate = () => (
-  <Create>
+  <Create redirect="list">
     <SimpleForm>
       <TextInput source="name" label="Название" validate={required()} fullWidth />
       <TextInput source="category" label="Категория" validate={required()} fullWidth />

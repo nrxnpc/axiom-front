@@ -1,7 +1,21 @@
-import { Edit, SimpleForm, TextInput, BooleanInput, required } from 'react-admin';
+import { Edit, SimpleForm, TextInput, BooleanInput, required, FunctionField } from 'react-admin';
 
 export const NewsEdit = () => (
-  <Edit>
+  <Edit
+    transform={(data: any) => {
+      if (data.tags) {
+        if (typeof data.tags === 'string') {
+          data.tags = data.tags
+            .split(',')
+            .map((tag: string) => tag.trim())
+            .filter((tag: string) => tag.length > 0);
+        } else if (Array.isArray(data.tags)) {
+          data.tags = data.tags.join(', ');
+        }
+      }
+      return data;
+    }}
+  >
     <SimpleForm>
       <TextInput source="id" label="ID" disabled />
       <TextInput source="title" label="Заголовок" validate={required()} fullWidth />

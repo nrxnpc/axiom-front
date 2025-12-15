@@ -30,7 +30,7 @@ jobs:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
         REMOTE_USER: ${{ secrets.REMOTE_USER }}
-        SOURCE: "build/"
+        SOURCE: "dist/"
         TARGET: "/var/www/frontend/"
         ARGS: "-rltgoDzvO --delete"
         SCRIPT_BEFORE: |

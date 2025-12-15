@@ -143,6 +143,12 @@ export const dataProvider: DataProvider = {
     } else if (resource === 'campaigns' && json && json.campaigns && Array.isArray(json.campaigns)) {
       data = json.campaigns;
       total = json.pagination?.total || json.campaigns.length;
+    } else if (resource === 'news' && json && json.news && Array.isArray(json.news)) {
+      data = json.news;
+      total = json.pagination?.total || json.news.length;
+    } else if (resource === 'cars' && json && json.cars && Array.isArray(json.cars)) {
+      data = json.cars;
+      total = json.pagination?.total || json.cars.length;
     } else if (Array.isArray(json)) {
       data = json;
       total = json.length;
@@ -243,6 +249,21 @@ export const dataProvider: DataProvider = {
         method: 'POST',
         body: JSON.stringify(params.data),
       });
+      if (resource === 'news' && json && json.article_id) {
+        return { data: { id: json.article_id, ...json } };
+      }
+      if (resource === 'cars' && json && json.car_id) {
+        return { data: { id: json.car_id, ...json } };
+      }
+      if (resource === 'products' && json && json.product_id) {
+        return { data: { id: json.product_id, ...json } };
+      }
+      if (!json || !json.id) {
+        if (json && typeof json === 'object' && Object.keys(json).length > 0) {
+          return { data: json };
+        }
+        throw new Error('Сервер вернул неожиданный формат ответа');
+      }
       return { data: json };
     } catch (error) {
       const apiError = error as ApiError;
