@@ -18,11 +18,29 @@ jobs:
         node-version: '18'
         cache: 'yarn'
     
+    - name: Clean cache
+      run: |
+        rm -rf dist
+        rm -rf node_modules/.vite
+        rm -rf node_modules/.cache
+    
     - name: Install dependencies
       run: yarn install --frozen-lockfile
     
     - name: Build project
       run: yarn build
+    
+    - name: Verify build
+      run: |
+        echo "=== Проверка сборки ==="
+        echo "Содержимое dist/:"
+        ls -la dist/
+        echo ""
+        echo "HTML файл:"
+        grep -o 'src="[^"]*"' dist/index.html || echo "Не найден index.html"
+        echo ""
+        echo "JS файлы:"
+        ls -la dist/assets/*.js 2>/dev/null || echo "Нет JS файлов"
     
     - name: Deploy to server
       uses: easingthemes/ssh-deploy@v4
