@@ -1,4 +1,5 @@
 import { Edit, SimpleForm, TextInput, NumberInput, required } from 'react-admin';
+import { ImageUploadInput } from '../components/ImageUploadInput';
 
 export const CarEdit = () => (
   <Edit>
@@ -8,6 +9,7 @@ export const CarEdit = () => (
       <TextInput source="model" label="Модель" validate={required()} fullWidth />
       <NumberInput source="year" label="Год" validate={required()} />
       <TextInput source="price" label="Цена" validate={required()} fullWidth />
+      <ImageUploadInput source="imageURL" label="Фотография автомобиля" />
       <TextInput source="description" label="Описание" fullWidth multiline rows={3} />
       <TextInput source="engine" label="Двигатель" fullWidth />
       <TextInput source="transmission" label="Коробка передач" fullWidth />
