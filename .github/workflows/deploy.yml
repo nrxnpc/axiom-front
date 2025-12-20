@@ -52,13 +52,13 @@ jobs:
         TARGET: "/var/www/frontend/"
         ARGS: "-rltgoDzvO --delete"
         SCRIPT_BEFORE: |
-          echo "Настраиваем права доступа..."
+          echo "Настраиваем права доступа для деплоя..."
           sudo chown -R frontend-deploy:www-data /var/www/frontend
           sudo chmod -R 775 /var/www/frontend
           echo "Начинаем деплой..."
         SCRIPT_AFTER: |
-          echo "Исправляем права после деплоя..."
-          sudo chown -R www-data:www-data /var/www/frontend
-          sudo chmod -R 755 /var/www/frontend
+          echo "Устанавливаем финальные права (frontend-deploy:www-data с 775)..."
+          sudo chown -R frontend-deploy:www-data /var/www/frontend
+          sudo chmod -R 775 /var/www/frontend
           echo "Деплой завершен!"
           sudo systemctl reload nginx
