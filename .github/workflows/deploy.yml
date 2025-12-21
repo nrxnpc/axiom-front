@@ -37,10 +37,16 @@ jobs:
         ls -la dist/
         echo ""
         echo "HTML файл:"
-        grep -o 'src="[^"]*"' dist/index.html || echo "Не найден index.html"
+        cat dist/index.html
         echo ""
-        echo "JS файлы:"
-        ls -la dist/assets/*.js 2>/dev/null || echo "Нет JS файлов"
+        echo "JS файлы с размерами:"
+        ls -lh dist/assets/*.js 2>/dev/null || echo "Нет JS файлов"
+        echo ""
+        echo "Размер index.js:"
+        wc -c dist/assets/index.js 2>/dev/null || echo "Файл не найден"
+        echo ""
+        echo "Проверка целостности index.js (первые и последние 100 байт):"
+        head -c 100 dist/assets/index.js 2>/dev/null && echo "" && tail -c 100 dist/assets/index.js 2>/dev/null || echo "Ошибка чтения файла"
     
     - name: Deploy to server
       uses: easingthemes/ssh-deploy@v4
@@ -60,5 +66,13 @@ jobs:
           echo "Устанавливаем финальные права (frontend-deploy:www-data с 775)..."
           sudo chown -R frontend-deploy:www-data /var/www/frontend
           sudo chmod -R 775 /var/www/frontend
+          echo ""
+          echo "=== Проверка файлов на сервере ==="
+          echo "Размер index.js на сервере:"
+          wc -c /var/www/frontend/assets/index.js || echo "Файл не найден"
+          echo ""
+          echo "Содержимое assets/:"
+          ls -lh /var/www/frontend/assets/
+          echo ""
           echo "Деплой завершен!"
           sudo systemctl reload nginx
