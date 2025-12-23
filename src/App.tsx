@@ -10,6 +10,7 @@ import PaymentIcon from '@mui/icons-material/Payment';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import FlagIcon from '@mui/icons-material/Flag';
 import PeopleIcon from '@mui/icons-material/People';
+import BuildIcon from '@mui/icons-material/Build';
 import { authProvider } from './authProvider';
 import { dataProvider } from './dataProvider';
 import { LoginPage } from './LoginPage';
@@ -22,6 +23,8 @@ import { CarEdit } from './cars/CarEdit';
 import { ProductList } from './products/ProductList';
 import { ProductCreate } from './products/ProductCreate';
 import { ProductEdit } from './products/ProductEdit';
+import { PartsList } from './parts/PartsList';
+import { PartsCreate } from './parts/PartsCreate';
 import { NewsList } from './news/NewsList';
 import { NewsCreate } from './news/NewsCreate';
 import { NewsEdit } from './news/NewsEdit';
@@ -97,6 +100,13 @@ const AdminApp = () => {
         edit={ProductEdit}
         options={{ label: 'Товары' }}
         icon={ShoppingCartIcon}
+      />
+      <Resource
+        name="parts"
+        list={PartsList}
+        create={PartsCreate}
+        options={{ label: 'Запчасти' }}
+        icon={BuildIcon}
       />
       <Resource
         name="news"

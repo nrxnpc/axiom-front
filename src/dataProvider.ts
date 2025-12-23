@@ -72,6 +72,10 @@ export const dataProvider: DataProvider = {
   getList: async (resource, params) => {
     let url: string;
     
+    if (resource === 'parts') {
+      resource = 'spare-parts';
+    }
+    
     if (resource === 'admin/users') {
       const { page, perPage } = params.pagination;
       const limit = perPage;
@@ -149,6 +153,22 @@ export const dataProvider: DataProvider = {
     } else if (resource === 'cars' && json && json.cars && Array.isArray(json.cars)) {
       data = json.cars;
       total = json.pagination?.total || json.cars.length;
+    } else if (resource === 'spare-parts' && json && json.spare_parts && Array.isArray(json.spare_parts)) {
+      data = json.spare_parts.map((part: any) => ({
+        id: part.id,
+        productName: part.sku,
+        productCategory: part.category,
+        pointsEarned: part.points,
+      }));
+      total = json.pagination?.total || json.spare_parts.length;
+    } else if (resource === 'spare-parts' && Array.isArray(json)) {
+      data = json.map((part: any) => ({
+        id: part.id,
+        productName: part.sku,
+        productCategory: part.category,
+        pointsEarned: part.points,
+      }));
+      total = json.length;
     } else if (Array.isArray(json)) {
       data = json;
       total = json.length;
@@ -243,11 +263,23 @@ export const dataProvider: DataProvider = {
   },
 
   create: async (resource, params) => {
-    const url = `${API_URL}/${resource}`;
+    let url: string;
+    let requestData = params.data;
+    
+    if (resource === 'parts') {
+      resource = 'spare-parts';
+      requestData = {
+        sku: params.data.productName,
+        category: params.data.productCategory,
+        points: params.data.pointsEarned,
+      };
+    }
+    
+    url = `${API_URL}/${resource}`;
     try {
       const { json } = await httpClient(url, {
         method: 'POST',
-        body: JSON.stringify(params.data),
+        body: JSON.stringify(requestData),
       });
       if (resource === 'news' && json && json.article_id) {
         return { data: { id: json.article_id, ...json } };
@@ -257,6 +289,17 @@ export const dataProvider: DataProvider = {
       }
       if (resource === 'products' && json && json.product_id) {
         return { data: { id: json.product_id, ...json } };
+      }
+      if (resource === 'spare-parts' && json) {
+        const sparePart = json.spare_part || json;
+        return {
+          data: {
+            id: sparePart.id || json.spare_part_id,
+            productName: sparePart.sku,
+            productCategory: sparePart.category,
+            pointsEarned: sparePart.points,
+          },
+        };
       }
       if (!json || !json.id) {
         if (json && typeof json === 'object' && Object.keys(json).length > 0) {
