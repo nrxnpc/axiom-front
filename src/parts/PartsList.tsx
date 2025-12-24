@@ -19,8 +19,131 @@ import {
   Typography,
   Grid,
   Box,
+  IconButton,
+  Paper,
 } from '@mui/material';
+import PrintIcon from '@mui/icons-material/Print';
 import { API_URL, API_KEY } from '../config';
+
+interface QRCode {
+  spare_part_id: string;
+  spare_part_sku?: string;
+  qr_id: string;
+  image_url: string;
+}
+
+interface QRCodeModalProps {
+  open: boolean;
+  onClose: () => void;
+  qrCodes: QRCode[];
+}
+
+const QRCodeModal = ({ open, onClose, qrCodes }: QRCodeModalProps) => {
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const getImageUrl = (imageUrl: string): string => {
+    if (imageUrl.startsWith('http')) {
+      return imageUrl;
+    }
+    return `${API_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+  };
+
+  return (
+    <>
+      <style>
+        {`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            .qr-modal-print, .qr-modal-print * {
+              visibility: visible;
+            }
+            .qr-modal-print {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              height: 100%;
+              overflow: visible;
+            }
+            .MuiDialog-container {
+              position: static !important;
+            }
+            .MuiDialog-paper {
+              margin: 0 !important;
+              max-width: 100% !important;
+              height: 100% !important;
+              box-shadow: none !important;
+            }
+            .MuiDialogTitle-root {
+              padding: 16px !important;
+            }
+            .MuiDialogContent-root {
+              padding: 16px !important;
+              overflow: visible !important;
+            }
+            .MuiDialogActions-root {
+              display: none !important;
+            }
+          }
+        `}
+      </style>
+      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth className="qr-modal-print">
+      <DialogTitle>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="h6">
+            Сгенерированные QR-коды ({qrCodes.length})
+          </Typography>
+          <IconButton onClick={handlePrint} color="primary" sx={{ mr: 1 }}>
+            <PrintIcon />
+            <Typography variant="body2" sx={{ ml: 1 }}>
+              Печать
+            </Typography>
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+          {qrCodes.map((qrCode, index) => (
+            <Grid item xs={12} sm={6} md={4} key={index}>
+              <Paper
+                elevation={2}
+                sx={{
+                  p: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <img
+                  src={getImageUrl(qrCode.image_url)}
+                  alt={`QR Code ${qrCode.qr_id}`}
+                  style={{
+                    maxWidth: '100%',
+                    height: 'auto',
+                    maxHeight: '200px',
+                    objectFit: 'contain',
+                  }}
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                  {qrCode.spare_part_sku || qrCode.spare_part_id}
+                </Typography>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Закрыть</Button>
+      </DialogActions>
+    </Dialog>
+    </>
+  );
+};
 
 interface Part {
   id: string;
@@ -101,6 +224,8 @@ const GenerateQRBulkAction = (props: BulkActionProps) => {
   const notify = useNotify();
   const refresh = useRefresh();
   const [loading, setLoading] = useState(false);
+  const [qrCodes, setQRCodes] = useState<QRCode[]>([]);
+  const [qrModalOpen, setQRModalOpen] = useState(false);
 
   const getAuthToken = (): string => {
     const auth = localStorage.getItem('auth');
@@ -115,23 +240,6 @@ const GenerateQRBulkAction = (props: BulkActionProps) => {
     }
   };
 
-  const downloadImage = async (imageUrl: string, filename: string) => {
-    try {
-      const fullUrl = imageUrl.startsWith('http') 
-        ? imageUrl 
-        : `${API_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
-      
-      const a = document.createElement('a');
-      a.href = fullUrl;
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error(`Ошибка открытия ${filename}:`, error);
-      throw error;
-    }
-  };
 
   const generateQR = async (ids: string[]) => {
     setLoading(true);
@@ -185,19 +293,12 @@ const GenerateQRBulkAction = (props: BulkActionProps) => {
       }
 
       if (data.qr_codes && data.qr_codes.length > 0) {
-        for (const qrCode of data.qr_codes) {
-          const filename = `qr-${qrCode.spare_part_sku || qrCode.spare_part_id}-${qrCode.qr_id}.png`;
-          try {
-            await downloadImage(qrCode.image_url, filename);
-            await new Promise(resolve => setTimeout(resolve, 100));
-          } catch (error) {
-            console.error(`Не удалось скачать QR-код для ${qrCode.spare_part_id}:`, error);
-          }
-        }
+        setQRCodes(data.qr_codes);
+        setQRModalOpen(true);
         
         const message = data.failed > 0 
-          ? `Скачано: ${data.generated} QR-кодов, ошибок: ${data.failed}`
-          : `Успешно скачано ${data.generated} QR-кодов`;
+          ? `Сгенерировано: ${data.generated} QR-кодов, ошибок: ${data.failed}`
+          : `Успешно сгенерировано ${data.generated} QR-кодов`;
         notify(message, { type: 'success' });
       } else {
         notify('QR-коды не были сгенерированы', { type: 'warning' });
@@ -219,13 +320,20 @@ const GenerateQRBulkAction = (props: BulkActionProps) => {
   };
 
   return (
-    <RaButton
-      label="Создать QR"
-      onClick={handleGenerateQR}
-      disabled={loading}
-      variant="contained"
-      color="primary"
-    />
+    <>
+      <RaButton
+        label="Создать QR"
+        onClick={handleGenerateQR}
+        disabled={loading}
+        variant="contained"
+        color="primary"
+      />
+      <QRCodeModal
+        open={qrModalOpen}
+        onClose={() => setQRModalOpen(false)}
+        qrCodes={qrCodes}
+      />
+    </>
   );
 };
 
