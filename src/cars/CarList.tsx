@@ -288,7 +288,7 @@ export const CarList = () => {
           <TextField source="model" label="Модель" />
           <NumberField source="year" label="Год" />
           <TextField source="price" label="Цена" />
-          <DateField source="createdAt" label="Создан" showTime />
+          <DateField source="createdAt" label="Создан" />
         </Datagrid>
       </List>
       <CarDetailsModal

@@ -7,10 +7,94 @@ import {
   useNotify,
   useRefresh,
   BulkActionProps,
-  Button,
+  Button as RaButton,
   ListActions
 } from 'react-admin';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
+  Grid,
+  Box,
+} from '@mui/material';
 import { API_URL, API_KEY } from '../config';
+
+interface Part {
+  id: string;
+  productName?: string;
+  productCategory?: string;
+  pointsEarned?: number;
+}
+
+interface PartDetailsModalProps {
+  open: boolean;
+  onClose: () => void;
+  part: Part | null;
+}
+
+const PartDetailsModal = ({ open, onClose, part }: PartDetailsModalProps) => {
+  if (!part) {
+    return null;
+  }
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>Детали запчасти</DialogTitle>
+      <DialogContent>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            {part.productName && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  SKU
+                </Typography>
+                <Typography variant="h6" gutterBottom>
+                  {part.productName}
+                </Typography>
+              </Box>
+            )}
+            {part.productCategory && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Категория продукта
+                </Typography>
+                <Typography variant="h6" gutterBottom>
+                  {part.productCategory}
+                </Typography>
+              </Box>
+            )}
+            {part.pointsEarned !== undefined && (
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Баллы
+                </Typography>
+                <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
+                  {part.pointsEarned}
+                </Typography>
+              </Box>
+            )}
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                ID
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {part.id || '-'}
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Закрыть</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 const GenerateQRBulkAction = (props: BulkActionProps) => {
   const { selectedIds } = props;
@@ -150,7 +234,7 @@ const GenerateQRBulkAction = (props: BulkActionProps) => {
   };
 
   return (
-    <Button
+    <RaButton
       label="Создать QR"
       onClick={handleGenerateQR}
       disabled={loading}
@@ -160,17 +244,39 @@ const GenerateQRBulkAction = (props: BulkActionProps) => {
   );
 };
 
-export const PartsList = () => (
-  <List 
-    actions={<ListActions />}
-    bulkActionButtons={<GenerateQRBulkAction />}
-    resource="parts"
-  >
-    <Datagrid rowClick={false}>
-      <TextField source="productName" label="SKU" />
-      <TextField source="productCategory" label="Категория продукта" />
-      <NumberField source="pointsEarned" label="Баллы" />
-    </Datagrid>
-  </List>
-);
+export const PartsList = () => {
+  const [selectedPart, setSelectedPart] = useState<Part | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const handleRowClick = (id: string, resource: string, record: Part) => {
+    setSelectedPart(record);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedPart(null);
+  };
+
+  return (
+    <>
+      <List 
+        actions={<ListActions />}
+        bulkActionButtons={<GenerateQRBulkAction />}
+        resource="parts"
+      >
+        <Datagrid rowClick={handleRowClick}>
+          <TextField source="productName" label="SKU" />
+          <TextField source="productCategory" label="Категория продукта" />
+          <NumberField source="pointsEarned" label="Баллы" />
+        </Datagrid>
+      </List>
+      <PartDetailsModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        part={selectedPart}
+      />
+    </>
+  );
+};
 
