@@ -123,13 +123,12 @@ const GenerateQRBulkAction = (props: BulkActionProps) => {
       
       const a = document.createElement('a');
       a.href = fullUrl;
-      a.download = filename;
       a.target = '_blank';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
     } catch (error) {
-      console.error(`Ошибка скачивания ${filename}:`, error);
+      console.error(`Ошибка открытия ${filename}:`, error);
       throw error;
     }
   };
