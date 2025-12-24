@@ -97,8 +97,10 @@ export const ImageUploadInput = ({ source, label = 'Фотография' }: Ima
 
       const result = await response.json();
       
-      if (result.success && result.file_url) {
-        field.onChange(result.file_url);
+      const imageUrl = result.file_url || result.image_url || result.url || result.imageURL;
+      
+      if (result.success && imageUrl) {
+        field.onChange(imageUrl);
         notify('Фотография успешно загружена', { type: 'success' });
       } else {
         throw new Error('Неверный формат ответа от сервера');
