@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { List, Datagrid, TextField, NumberField, DateField, FunctionField } from 'react-admin';
+import { List, Datagrid, TextField, NumberField, DateField } from 'react-admin';
 import { ListActions } from '../components/ListActions';
 import {
   Dialog,
@@ -224,17 +224,6 @@ export const CarList = () => {
         <Datagrid
           rowClick={handleRowClick}
         >
-          <FunctionField
-            source="id"
-            label="ID"
-            render={(record: any) => {
-              const id = record?.id || '';
-              if (id.length <= 12) {
-                return id;
-              }
-              return `${id.substring(0, 6)}...${id.substring(id.length - 6)}`;
-            }}
-          />
           <TextField source="brand" label="Марка" />
           <TextField source="model" label="Модель" />
           <NumberField source="year" label="Год" />

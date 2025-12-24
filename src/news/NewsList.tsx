@@ -4,17 +4,6 @@ import { ListActions } from '../components/ListActions';
 export const NewsList = () => (
   <List actions={<ListActions />}>
     <Datagrid rowClick="edit">
-      <FunctionField
-        source="id"
-        label="ID"
-        render={(record: any) => {
-          const id = record?.id || '';
-          if (id.length <= 12) {
-            return id;
-          }
-          return `${id.substring(0, 6)}...${id.substring(id.length - 6)}`;
-        }}
-      />
       <TextField source="title" label="Заголовок" />
       <TextField source="content" label="Содержание" />
       <ImageField source="imageURL" label="Изображение" />
@@ -29,8 +18,38 @@ export const NewsList = () => (
           return tags.join(', ');
         }}
       />
-      <DateField source="createdAt" label="Создана" showTime />
-      <DateField source="publishedAt" label="Опубликована" showTime />
+      <FunctionField
+        source="createdAt"
+        label="Создана"
+        render={(record: any) => {
+          const date = record?.createdAt;
+          if (!date) return '';
+          const dateObj = new Date(date);
+          return dateObj.toLocaleString('ru-RU', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        }}
+      />
+      <FunctionField
+        source="publishedAt"
+        label="Опубликована"
+        render={(record: any) => {
+          const date = record?.publishedAt;
+          if (!date) return '';
+          const dateObj = new Date(date);
+          return dateObj.toLocaleString('ru-RU', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        }}
+      />
     </Datagrid>
   </List>
 );
