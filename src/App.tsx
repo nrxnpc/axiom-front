@@ -136,12 +136,12 @@ const AdminApp = () => {
         options={{ label: 'Транзакции' }}
         icon={PaymentIcon}
       />
-      <Resource
+      {/* <Resource
         name="statistics"
         list={StatisticsList}
         options={{ label: 'Статистика' }}
         icon={AssessmentIcon}
-      />
+      /> */}
       <Resource
         name="reports"
         list={ReportList}
