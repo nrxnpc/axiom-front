@@ -36,30 +36,16 @@ export const PartsCreate = () => {
 
   const downloadImage = async (imageUrl: string, filename: string) => {
     try {
-      const token = getAuthToken();
       const fullUrl = imageUrl.startsWith('http') 
         ? imageUrl 
         : `${API_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
       
-      const response = await fetch(fullUrl, {
-        headers: {
-          'X-API-Key': API_KEY,
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Ошибка загрузки изображения: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = fullUrl;
       a.download = filename;
+      a.target = '_blank';
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
       console.error(`Ошибка скачивания ${filename}:`, error);
