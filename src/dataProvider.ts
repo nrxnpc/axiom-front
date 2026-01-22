@@ -179,7 +179,18 @@ export const dataProvider: DataProvider = {
       data = json.items;
       total = json.total || json.count || json.items.length;
     } else if (json && json.products && Array.isArray(json.products)) {
-      data = json.products;
+
+      data = json.products.map((product: any) => ({
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        pointsCost: product.points_cost ?? product.pointsCost,
+        stockQuantity: product.stock_quantity ?? product.stockQuantity,
+        imageURL: product.image_url ?? product.imageURL,
+        description: product.description,
+        isActive: product.is_active ?? product.isActive,
+        createdAt: product.created_at ?? product.createdAt,
+      }));
       total = json.pagination?.total || json.pagination?.count || json.products.length;
     } else {
       data = [];
@@ -203,6 +214,15 @@ export const dataProvider: DataProvider = {
   },
 
   getOne: async (resource, params) => {
+
+    if (resource === 'products') {
+      return {
+        data: {
+          id: params.id,
+        },
+      };
+    }
+    
     const url = `${API_URL}/${resource}/${params.id}`;
     try {
       const { json } = await httpClient(url);
@@ -211,6 +231,13 @@ export const dataProvider: DataProvider = {
       const apiError = error as ApiError;
       if (apiError.isPermissionError) {
         throw new Error('Нет доступа к этому ресурсу');
+      }
+      if (apiError.status === 405 || apiError.status === 404) {
+        return {
+          data: {
+            id: params.id,
+          },
+        };
       }
       throw error;
     }
@@ -324,6 +351,23 @@ export const dataProvider: DataProvider = {
         method: 'PUT',
         body: JSON.stringify(params.data),
       });
+      
+      if (resource === 'products' && json && json.product) {
+        const product = json.product;
+        return {
+          data: {
+            id: product.id,
+            name: product.name,
+            category: product.category,
+            pointsCost: product.points_cost,
+            stockQuantity: product.stock_quantity,
+            imageURL: product.image_url,
+            description: product.description,
+            isActive: product.is_active,
+          },
+        };
+      }
+
       return { data: json };
     } catch (error) {
       const apiError = error as ApiError;

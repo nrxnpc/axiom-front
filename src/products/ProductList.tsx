@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { List, Datagrid, TextField, NumberField, DateField, BooleanField } from 'react-admin';
+import { List, Datagrid, TextField, NumberField, DateField, BooleanField, useRedirect, BulkDeleteButton } from 'react-admin';
 import { ListActions } from '../components/ListActions';
 import {
   Dialog,
@@ -35,12 +35,20 @@ interface ProductDetailsModalProps {
 
 const ProductDetailsModal = ({ open, onClose, product }: ProductDetailsModalProps) => {
   const [imageError, setImageError] = useState(false);
+  const redirect = useRedirect();
 
   useEffect(() => {
     if (open && product) {
       setImageError(false);
     }
   }, [open, product]);
+
+  const handleEdit = () => {
+    if (product?.id) {
+      redirect(`/products/${product.id}`, undefined, undefined, { record: product });
+      onClose();
+    }
+  };
 
   if (!product) {
     return null;
@@ -204,6 +212,9 @@ const ProductDetailsModal = ({ open, onClose, product }: ProductDetailsModalProp
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Закрыть</Button>
+        <Button onClick={handleEdit} variant="contained" color="primary">
+          Редактировать
+        </Button>
       </DialogActions>
     </Dialog>
   );
@@ -225,7 +236,7 @@ export const ProductList = () => {
 
   return (
     <>
-      <List actions={<ListActions />}>
+      <List actions={<ListActions />} bulkActionButtons={<BulkDeleteButton />}>
         <Datagrid rowClick={handleRowClick}>
           <TextField source="name" label="Название" />
           <TextField source="category" label="Категория" />
