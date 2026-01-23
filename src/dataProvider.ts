@@ -108,6 +108,33 @@ export const dataProvider: DataProvider = {
       }
       
       url = `${API_URL}/${resource}?${query.toString()}`;
+    } else if (resource === 'support/tickets') {
+      const { page, perPage } = params.pagination;
+      const limit = perPage;
+      const offset = (page - 1) * perPage;
+      
+      const query = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+      
+      if (params.filter) {
+        if (params.filter.status) {
+          query.set('status', params.filter.status);
+        }
+        if (params.filter.priority) {
+          query.set('priority', params.filter.priority);
+        }
+        if (params.filter.sort) {
+          query.set('sort', params.filter.sort);
+        }
+      }
+      
+      if (!params.filter?.sort) {
+        query.set('sort', 'updated_at');
+      }
+      
+      url = `${API_URL}/admin/support/tickets?${query.toString()}`;
     } else if (resource === 'statistics' || resource === 'company/analytics') {
       url = `${API_URL}/${resource}`;
     } else {
@@ -138,6 +165,9 @@ export const dataProvider: DataProvider = {
         data = [];
         total = 0;
       }
+    } else if (resource === 'support/tickets' && json && json.tickets && Array.isArray(json.tickets)) {
+      data = json.tickets;
+      total = json.pagination?.total || json.tickets.length;
     } else if (resource === 'admin/users' && json && json.users && Array.isArray(json.users)) {
       data = json.users;
       total = json.pagination?.total || json.users.length;
@@ -214,8 +244,8 @@ export const dataProvider: DataProvider = {
   },
 
   getOne: async (resource, params) => {
-
-    if (resource === 'products') {
+    
+    if (resource === 'products' || resource === 'support/tickets') {
       return {
         data: {
           id: params.id,
@@ -223,7 +253,7 @@ export const dataProvider: DataProvider = {
       };
     }
     
-    const url = `${API_URL}/${resource}/${params.id}`;
+    let url = `${API_URL}/${resource}/${params.id}`;
     try {
       const { json } = await httpClient(url);
       return { data: json };
@@ -290,7 +320,7 @@ export const dataProvider: DataProvider = {
   },
 
   create: async (resource, params) => {
-    let url: string;
+    let url: string = `${API_URL}/${resource}`;
     let requestData = params.data;
     
     if (resource === 'parts') {
@@ -300,9 +330,17 @@ export const dataProvider: DataProvider = {
         category: params.data.productCategory,
         points: params.data.pointsEarned,
       };
+      url = `${API_URL}/${resource}`;
+    } else if (resource === 'support/tickets') {
+      requestData = {
+        userId: params.data.userId,
+        subject: params.data.subject,
+        priority: params.data.priority || 'medium',
+        ...(params.data.content && { content: params.data.content }),
+        ...(params.data.attachments && { attachments: params.data.attachments }),
+      };
+      url = `${API_URL}/admin/support/tickets`;
     }
-    
-    url = `${API_URL}/${resource}`;
     try {
       const { json } = await httpClient(url, {
         method: 'POST',
@@ -316,6 +354,9 @@ export const dataProvider: DataProvider = {
       }
       if (resource === 'products' && json && json.product_id) {
         return { data: { id: json.product_id, ...json } };
+      }
+      if (resource === 'support/tickets' && json && json.ticket) {
+        return { data: json.ticket };
       }
       if (resource === 'spare-parts' && json) {
         const sparePart = json.spare_part || json;

@@ -7,10 +7,10 @@ import ArticleIcon from '@mui/icons-material/Article';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import PaymentIcon from '@mui/icons-material/Payment';
-import AssessmentIcon from '@mui/icons-material/Assessment';
 import FlagIcon from '@mui/icons-material/Flag';
 import PeopleIcon from '@mui/icons-material/People';
 import BuildIcon from '@mui/icons-material/Build';
+import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import { authProvider } from './authProvider';
 import { dataProvider } from './dataProvider';
 import { LoginPage } from './LoginPage';
@@ -33,11 +33,13 @@ import { CampaignCreate } from './campaigns/CampaignCreate';
 import { CampaignEdit } from './campaigns/CampaignEdit';
 import { AnalyticsList } from './analytics/AnalyticsList';
 import { TransactionList } from './transactions/TransactionList';
-import { StatisticsList } from './statistics/StatisticsList';
 import { ReportList } from './reports/ReportList';
 import { ReportCreate } from './reports/ReportCreate';
 import { UserList } from './users/UserList';
 import { UserMeTest } from './users/UserMeTest';
+import { SupportList } from './support/SupportList';
+import { SupportCreate } from './support/SupportCreate';
+import { SupportShow } from './support/SupportShow';
 import { userStore } from './userStore';
 
 const MyAppBar = () => (
@@ -62,7 +64,9 @@ const AdminApp = () => {
 
     const checkAfterAuth = async () => {
       try {
-        await authProvider.getIdentity();
+        if (authProvider && typeof authProvider.getIdentity === 'function') {
+          await authProvider.getIdentity();
+        }
       } catch {
       }
     };
@@ -157,8 +161,20 @@ const AdminApp = () => {
           icon={PeopleIcon}
         />
       )}
+      <Resource
+        name="support/tickets"
+        list={SupportList}
+        create={SupportCreate}
+        show={SupportShow}
+        options={{ label: 'Поддержка' }}
+        icon={SupportAgentIcon}
+      />
       <CustomRoutes>
         <Route path="/user-me-test" element={<UserMeTest />} />
+        <Route 
+          path="/support/tickets/:id" 
+          element={<SupportShow />} 
+        />
       </CustomRoutes>
       <CustomRoutes noLayout>
         <Route path="/register" element={<RegisterPage />} />
