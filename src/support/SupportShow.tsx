@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNotify } from 'react-admin';
+import { useNotify, useRecordContext } from 'react-admin';
 import { useLocation, useParams } from 'react-router-dom';
 import { 
   Box, 
@@ -205,7 +205,6 @@ const MessageBubble = ({ message }: { message: SupportMessageWithSender }) => {
                 const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
                 const fileName = url.split('/').pop() || `Вложение ${index + 1}`;
                 const truncatedFileName = fileName.length > 30 ? fileName.substring(0, 30) + '...' : fileName;
-                const fullUrl = getFullUrl(url);
                 
                 return (
                   <Box
@@ -288,7 +287,7 @@ const MessageBubble = ({ message }: { message: SupportMessageWithSender }) => {
   );
 };
 
-const MessageList = ({ ticketId, refreshKey }: { ticketId: string; refreshKey: number }) => {
+const MessageList = ({ ticketId, refreshKey }: { ticketId: string | number; refreshKey: number }) => {
   const [messages, setMessages] = useState<SupportMessageWithSender[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -382,7 +381,7 @@ const MessageList = ({ ticketId, refreshKey }: { ticketId: string; refreshKey: n
   );
 };
 
-const SendMessageForm = ({ ticketId, onMessageSent }: { ticketId: string; onMessageSent: () => void }) => {
+const SendMessageForm = ({ ticketId, onMessageSent }: { ticketId: string | number; onMessageSent: () => void }) => {
   const [content, setContent] = useState('');
   const [attachments, setAttachments] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
@@ -515,25 +514,68 @@ const SendMessageForm = ({ ticketId, onMessageSent }: { ticketId: string; onMess
 export const SupportShow = () => {
   const location = useLocation();
   const params = useParams();
+  const recordFromContext = useRecordContext();
   const state = location.state as any;
-  const record = state?.record;
+  const recordFromState = state?.record;
+  const initialRecord = recordFromContext || recordFromState;
+  const [ticketData, setTicketData] = useState<any>(initialRecord);
+  const [loading, setLoading] = useState(!initialRecord);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  if (!record || !record.id) {
+  useEffect(() => {
+    const loadTicket = async () => {
+      if (initialRecord && initialRecord.id) {
+        setTicketData(initialRecord);
+        setLoading(false);
+        return;
+      }
+
+      const ticketId = params.id;
+      if (!ticketId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const auth = localStorage.getItem('auth');
+        const token = auth ? JSON.parse(auth).access_token : '';
+        
+        const response = await fetch(`${API_URL}/admin/support/tickets/${ticketId}`, {
+          headers: {
+            'X-API-Key': API_KEY,
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ошибка загрузки тикета: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setTicketData(data.ticket || data);
+      } catch (err) {
+        setLoading(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTicket();
+  }, [params.id, initialRecord]);
+
+  if (loading || !ticketData || !ticketData.id) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 3, gap: 2 }}>
         <CircularProgress />
         <Typography color="text.secondary">
-          {!record ? 'Загрузка данных тикета...' : 'ID тикета не найден'}
+          {loading ? 'Загрузка данных тикета...' : 'ID тикета не найден'}
         </Typography>
-        {record && (
-          <Typography variant="caption" color="error">
-            Record data: {JSON.stringify(record, null, 2)}
-          </Typography>
-        )}
       </Box>
     );
   }
+
+  const record = ticketData;
 
   const handleMessageSent = () => {
     setRefreshKey((prev) => prev + 1);
