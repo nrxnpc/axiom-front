@@ -8,14 +8,15 @@ import {
   TextField as MuiTextField, 
   Alert, 
   CircularProgress, 
-  Button as MuiButton, 
   Chip,
   Avatar,
   IconButton
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
 import { API_URL, API_KEY } from '../config';
 import { SupportMessageWithSender, GetMessagesParams } from '../types';
+import { FileUploadButton, FilePreview } from '../components/FileUploadButton';
 
 const StatusChip = ({ status }: { status: string }) => {
   const getColor = () => {
@@ -77,8 +78,84 @@ const PriorityChip = ({ priority }: { priority: string }) => {
   return <Chip label={getLabel()} color={getColor()} size="small" />;
 };
 
+const AuthorizedImage = ({ 
+  url, 
+  alt, 
+  onClick, 
+  sx 
+}: { 
+  url: string; 
+  alt: string; 
+  onClick: () => void;
+  sx?: any;
+}) => {
+  const getFullUrl = (url: string): string => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    if (url.startsWith('/api/v1')) {
+      return `${API_URL.replace('/api/v1', '')}${url}`;
+    }
+    if (url.startsWith('/')) {
+      return `${API_URL.replace('/api/v1', '')}${url}`;
+    }
+    return `${API_URL.replace('/api/v1', '')}/api/v1${url.startsWith('/') ? url : `/${url}`}`;
+  };
+
+  const fullUrl = getFullUrl(url);
+
+  return (
+    <Box
+      component="img"
+      src={fullUrl}
+      alt={alt}
+      onClick={onClick}
+      sx={sx}
+      onError={(e) => {
+        e.currentTarget.style.display = 'none';
+      }}
+    />
+  );
+};
+
 const MessageBubble = ({ message }: { message: SupportMessageWithSender }) => {
   const isOperator = message.senderRole === 'admin' || message.senderRole === 'operator';
+  
+  const getFullUrl = (url: string): string => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    if (url.startsWith('/api/v1')) {
+      return `${API_URL.replace('/api/v1', '')}${url}`;
+    }
+    if (url.startsWith('/')) {
+      return `${API_URL.replace('/api/v1', '')}${url}`;
+    }
+    return `${API_URL.replace('/api/v1', '')}/api/v1${url.startsWith('/') ? url : `/${url}`}`;
+  };
+
+  const handleDownload = async (url: string, fileName: string) => {
+    try {
+      const fullUrl = getFullUrl(url);
+      const response = await fetch(fullUrl);
+
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки файла');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      window.open(getFullUrl(url), '_blank');
+    }
+  };
   
   return (
     <Box
@@ -124,24 +201,67 @@ const MessageBubble = ({ message }: { message: SupportMessageWithSender }) => {
           </Typography>
           {message.attachments && message.attachments.length > 0 && (
             <Box sx={{ mt: 1, pt: 1, borderTop: `1px solid ${isOperator ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}` }}>
-              {message.attachments.map((url, index) => (
-                <Typography
-                  key={index}
-                  variant="caption"
-                  component="a"
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{
-                    display: 'block',
-                    color: isOperator ? 'white' : 'primary.main',
-                    textDecoration: 'underline',
-                    mb: 0.5,
-                  }}
-                >
-                  📎 Вложение {index + 1}
-                </Typography>
-              ))}
+              {message.attachments.map((url, index) => {
+                const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
+                const fileName = url.split('/').pop() || `Вложение ${index + 1}`;
+                const truncatedFileName = fileName.length > 30 ? fileName.substring(0, 30) + '...' : fileName;
+                const fullUrl = getFullUrl(url);
+                
+                return (
+                  <Box
+                    key={index}
+                    sx={{
+                      mb: 1,
+                      '&:last-child': { mb: 0 },
+                    }}
+                  >
+                    {isImage ? (
+                      <Box
+                        onClick={() => handleDownload(url, fileName)}
+                        sx={{
+                          display: 'block',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <AuthorizedImage
+                          url={url}
+                          alt={fileName}
+                          onClick={() => handleDownload(url, fileName)}
+                          sx={{
+                            maxWidth: '100%',
+                            maxHeight: 200,
+                            borderRadius: 1,
+                            border: `1px solid ${isOperator ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)'}`,
+                            cursor: 'pointer',
+                            '&:hover': {
+                              opacity: 0.9,
+                            },
+                          }}
+                        />
+                      </Box>
+                    ) : (
+                      <Box
+                        onClick={() => handleDownload(url, fileName)}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          color: isOperator ? 'white' : 'primary.main',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            textDecoration: 'underline',
+                          },
+                        }}
+                      >
+                        <AttachFileIcon sx={{ fontSize: 16 }} />
+                        <Typography variant="caption">
+                          {truncatedFileName}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
             </Box>
           )}
           <Typography
@@ -197,8 +317,6 @@ const MessageList = ({ ticketId, refreshKey }: { ticketId: string; refreshKey: n
         const queryString = queryParams.toString();
         const url = `${API_URL}/admin/support/tickets/${ticketId}/messages${queryString ? `?${queryString}` : ''}`;
         
-        console.log('Fetching messages from:', url);
-        
         const response = await fetch(url, {
           headers: {
             'X-API-Key': API_KEY,
@@ -207,16 +325,12 @@ const MessageList = ({ ticketId, refreshKey }: { ticketId: string; refreshKey: n
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Error response:', errorText);
           throw new Error(`Ошибка загрузки сообщений: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('Messages loaded:', data);
         setMessages(data.messages || []);
       } catch (err) {
-        console.error('Error fetching messages:', err);
         setError(err instanceof Error ? err.message : 'Ошибка загрузки сообщений');
       } finally {
         setLoading(false);
@@ -270,9 +384,17 @@ const MessageList = ({ ticketId, refreshKey }: { ticketId: string; refreshKey: n
 
 const SendMessageForm = ({ ticketId, onMessageSent }: { ticketId: string; onMessageSent: () => void }) => {
   const [content, setContent] = useState('');
-  const [attachments, setAttachments] = useState('');
+  const [attachments, setAttachments] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const notify = useNotify();
+
+  const handleFileUploaded = (url: string) => {
+    setAttachments((prev) => [...prev, url]);
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSend = async () => {
     if (!content.trim()) {
@@ -294,11 +416,8 @@ const SendMessageForm = ({ ticketId, onMessageSent }: { ticketId: string; onMess
         content: content.trim(),
       };
 
-      if (attachments) {
-        const urls = attachments.split(',').map((url: string) => url.trim()).filter((url: string) => url);
-        if (urls.length > 0) {
-          requestData.attachments = urls;
-        }
+      if (attachments.length > 0) {
+        requestData.attachments = attachments;
       }
 
       const response = await fetch(`${API_URL}/admin/support/tickets/${ticketId}/messages`, {
@@ -319,7 +438,7 @@ const SendMessageForm = ({ ticketId, onMessageSent }: { ticketId: string; onMess
 
       if (result.success) {
         setContent('');
-        setAttachments('');
+        setAttachments([]);
         onMessageSent();
       } else {
         throw new Error(result.message || 'Ошибка отправки сообщения');
@@ -349,36 +468,44 @@ const SendMessageForm = ({ ticketId, onMessageSent }: { ticketId: string; onMess
       }}
     >
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <MuiTextField
-          fullWidth
-          multiline
-          rows={3}
-          placeholder="Введите сообщение..."
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onKeyPress={handleKeyPress}
-          disabled={sending}
-          helperText={`${content.length}/5000 символов. Ctrl+Enter для отправки`}
-          sx={{ mb: 1 }}
-        />
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        {attachments.length > 0 && (
+          <Box sx={{ mb: 1 }}>
+            {attachments.map((url, index) => (
+              <FilePreview
+                key={index}
+                url={url}
+                onRemove={() => handleRemoveAttachment(index)}
+              />
+            ))}
+          </Box>
+        )}
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
           <MuiTextField
-            size="small"
             fullWidth
-            placeholder="Вложения (URL через запятую)"
-            value={attachments}
-            onChange={(e) => setAttachments(e.target.value)}
+            multiline
+            rows={3}
+            placeholder="Введите сообщение..."
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onKeyPress={handleKeyPress}
             disabled={sending}
+            helperText={`${content.length}/5000 символов. Ctrl+Enter для отправки`}
             sx={{ flex: 1 }}
           />
-          <IconButton
-            color="primary"
-            onClick={handleSend}
-            disabled={sending || !content.trim()}
-            sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
-          >
-            {sending ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-          </IconButton>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+            <FileUploadButton
+              onFileUploaded={handleFileUploaded}
+              disabled={sending}
+            />
+            <IconButton
+              color="primary"
+              onClick={handleSend}
+              disabled={sending || !content.trim()}
+              sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
+            >
+              {sending ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+            </IconButton>
+          </Box>
         </Box>
       </Box>
     </Paper>
@@ -391,16 +518,6 @@ export const SupportShow = () => {
   const state = location.state as any;
   const record = state?.record;
   const [refreshKey, setRefreshKey] = useState(0);
-
-  useEffect(() => {
-    console.log('SupportShow mounted');
-    console.log('SupportShow - params:', params);
-    console.log('SupportShow - location.state:', location.state);
-    console.log('SupportShow - record:', record);
-    if (record) {
-      console.log('SupportShow - ticketId:', record.id);
-    }
-  }, [params, location.state, record]);
 
   if (!record || !record.id) {
     return (

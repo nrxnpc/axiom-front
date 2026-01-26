@@ -1,4 +1,4 @@
-import { List, Datagrid, TextField, DateField, useListContext, FunctionField } from 'react-admin';
+import { List, Datagrid, TextField, useListContext, FunctionField, Identifier } from 'react-admin';
 import { ListActions } from '../components/ListActions';
 import { Box, Select, MenuItem, FormControl, InputLabel, Chip } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
@@ -111,8 +111,9 @@ const SupportFilters = () => {
 export const SupportList = () => {
   const navigate = useNavigate();
 
-  const handleRowClick = (id: string, resource: string, record: any) => {
+  const handleRowClick = (id: Identifier, _resource: string, record: any): string => {
     navigate(`/support/tickets/${id}`, { state: { record } });
+    return `/support/tickets/${id}`;
   };
 
   return (
@@ -124,8 +125,29 @@ export const SupportList = () => {
         <FunctionField label="Статус" render={(record: any) => <StatusChip record={record} />} />
         <FunctionField label="Приоритет" render={(record: any) => <PriorityChip record={record} />} />
         <TextField source="messageCount" label="Сообщений" />
-        <DateField source="createdAt" label="Создан" showTime />
-        <DateField source="updatedAt" label="Обновлен" showTime />
+        <FunctionField
+          label="Создан"
+          render={(record: any) => {
+            if (!record.createdAt) return '-';
+            return new Date(record.createdAt).toLocaleDateString('ru-RU', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            });
+          }}
+        />
+        <FunctionField
+          label="Обновлен"
+          render={(record: any) => {
+            if (!record.updatedAt) return '-';
+            return new Date(record.updatedAt).toLocaleString('ru-RU', {
+              day: '2-digit',
+              month: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          }}
+        />
       </Datagrid>
     </List>
   );
