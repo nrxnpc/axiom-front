@@ -10,19 +10,25 @@ interface AuthData {
   expires_in?: number;
 }
 
+interface LoginUser {
+  id: string;
+  name?: string;
+  email: string;
+  phone?: string;
+  userType?: string;
+  points?: number;
+  role?: string;
+  registrationDate?: string;
+  lastLogin?: string;
+  isActive?: boolean;
+}
+
+interface LoginResponse extends AuthData {
+  user?: LoginUser;
+}
+
 interface UserMeResponse {
-  user: {
-    id: string;
-    name?: string;
-    email: string;
-    phone?: string;
-    userType?: string;
-    points?: number;
-    role?: string;
-    registrationDate?: string;
-    lastLogin?: string;
-    isActive?: boolean;
-  };
+  user: LoginUser;
 }
 
 const getAuthData = (): AuthData | null => {
@@ -35,7 +41,7 @@ const getAuthData = (): AuthData | null => {
   }
 };
 
-const fetchUserMe = async (accessToken: string): Promise<UserMeResponse> => {
+const fetchUserMe = async (accessToken: string, afterRefresh = false): Promise<UserMeResponse> => {
   const response = await fetch(`${API_URL}/user/me`, {
     method: 'GET',
     headers: {
@@ -47,6 +53,24 @@ const fetchUserMe = async (accessToken: string): Promise<UserMeResponse> => {
 
   if (!response.ok) {
     if (response.status === 401) {
+      if (afterRefresh) {
+        userStore.clearUser();
+        localStorage.removeItem('auth');
+        window.location.replace('/login');
+        throw new Error('Сессия истекла');
+      }
+      try {
+        await getRefreshPromise();
+        const authData = getAuthData();
+        if (authData?.access_token) {
+          return fetchUserMe(authData.access_token, true);
+        }
+      } catch {
+        userStore.clearUser();
+        localStorage.removeItem('auth');
+        window.location.replace('/login');
+        throw new Error('Сессия истекла');
+      }
       userStore.clearUser();
       localStorage.removeItem('auth');
       window.location.replace('/login');
@@ -59,7 +83,7 @@ const fetchUserMe = async (accessToken: string): Promise<UserMeResponse> => {
   return await response.json() as UserMeResponse;
 };
 
-const refreshAccessToken = async (): Promise<AuthData> => {
+export const refreshAccessToken = async (): Promise<AuthData> => {
   const authData = getAuthData();
   if (!authData?.refresh_token) {
     throw new Error('No refresh token');
@@ -78,26 +102,47 @@ const refreshAccessToken = async (): Promise<AuthData> => {
     throw new Error('Failed to refresh token');
   }
 
-  const newAuthData = await response.json() as AuthData;
-  if (!newAuthData.success || !newAuthData.access_token) {
+  const text = await response.text();
+  let newAuthData: AuthData;
+  try {
+    if (!text || !text.trim()) {
+      throw new Error('Empty refresh response');
+    }
+    newAuthData = JSON.parse(text) as AuthData;
+  } catch {
     throw new Error('Invalid refresh token response');
   }
-  
+  if (!newAuthData.access_token) {
+    throw new Error('Invalid refresh token response');
+  }
+
   localStorage.setItem('auth', JSON.stringify({
-    success: newAuthData.success,
+    success: true,
     access_token: newAuthData.access_token,
-    refresh_token: newAuthData.refresh_token,
+    refresh_token: newAuthData.refresh_token ?? getAuthData()?.refresh_token ?? '',
     expires_in: newAuthData.expires_in,
   }));
 
   try {
     const userMeData = await fetchUserMe(newAuthData.access_token);
     userStore.setUser(userMeData.user);
-  } catch (error) {
-    console.error('Failed to fetch user data after token refresh:', error);
+  } catch {
   }
 
   return newAuthData;
+};
+
+let refreshPromise: Promise<void> | null = null;
+
+export const getRefreshPromise = (): Promise<void> => {
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken()
+      .then(() => {})
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
 };
 
 const validateEmail = (email: string): boolean => {
@@ -132,24 +177,27 @@ export const authProvider: AuthProvider = {
       throw new Error(errorData.message || 'Неверный email или пароль');
     }
 
-    const authData = await response.json() as AuthData;
-    
-    if (!authData.success || !authData.access_token) {
+    const data = await response.json() as LoginResponse;
+
+    if (!data.success || !data.access_token) {
       throw new Error('Ошибка авторизации');
     }
 
     localStorage.setItem('auth', JSON.stringify({
-      success: authData.success,
-      access_token: authData.access_token,
-      refresh_token: authData.refresh_token,
-      expires_in: authData.expires_in,
+      success: data.success,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: data.expires_in,
     }));
 
-    try {
-      const userMeData = await fetchUserMe(authData.access_token);
-      userStore.setUser(userMeData.user);
-    } catch (error) {
-      console.error('Failed to fetch user data:', error);
+    if (data.user) {
+      userStore.setUser(data.user);
+    } else {
+      try {
+        const userMeData = await fetchUserMe(data.access_token);
+        userStore.setUser(userMeData.user);
+      } catch {
+      }
     }
 
     return Promise.resolve();
@@ -213,8 +261,7 @@ export const authProvider: AuthProvider = {
           const userMeData = await fetchUserMe(authData.access_token);
           user = userMeData.user;
           userStore.setUser(user);
-        } catch (error) {
-          console.error('Failed to fetch user data:', error);
+        } catch {
           return Promise.reject();
         }
       } else {

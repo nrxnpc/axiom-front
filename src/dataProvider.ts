@@ -2,6 +2,7 @@ import { DataProvider, fetchUtils } from 'react-admin';
 import { API_URL, API_KEY } from './config';
 import { ApiError } from './types';
 import { userStore } from './userStore';
+import { getRefreshPromise } from './authProvider';
 
 const getAuthToken = (): string => {
   const auth = localStorage.getItem('auth');
@@ -29,16 +30,16 @@ const httpClient = async (url: string, options: fetchUtils.Options = {}) => {
   const headers = options.headers as Headers;
   headers.set('X-API-Key', API_KEY);
   headers.set('Content-Type', 'application/json');
-  
+
   const token = getAuthToken();
   headers.set('Authorization', `Bearer ${token}`);
-  
+
   const response = await fetch(url, {
     method: options.method || 'GET',
     headers: headers as any,
     body: options.body,
   });
-  
+
   let json: any = {};
   try {
     const text = await response.text();
@@ -48,23 +49,66 @@ const httpClient = async (url: string, options: fetchUtils.Options = {}) => {
   } catch (parseError) {
     json = {};
   }
-  
+
   if (!response.ok) {
     if (response.status === 401) {
+      const isRefreshUrl = url.includes('/refresh');
+      if (!isRefreshUrl) {
+        try {
+          await getRefreshPromise();
+          const newToken = getAuthToken();
+          headers.set('Authorization', `Bearer ${newToken}`);
+          const retryResponse = await fetch(url, {
+            method: options.method || 'GET',
+            headers: headers as any,
+            body: options.body,
+          });
+          let retryJson: any = {};
+          try {
+            const retryText = await retryResponse.text();
+            if (retryText && retryText.trim()) {
+              retryJson = JSON.parse(retryText);
+            }
+          } catch {
+            retryJson = {};
+          }
+          if (retryResponse.ok) {
+            return { json: retryJson };
+          }
+          if (retryResponse.status === 401) {
+            handleUnauthorized();
+            const err = new Error('Сессия истекла. Пожалуйста, войдите снова.') as ApiError;
+            err.status = 401;
+            err.body = retryJson;
+            throw err;
+          }
+          const err = new Error(retryJson.message || retryJson.error || 'Request failed') as ApiError;
+          err.status = retryResponse.status;
+          err.body = retryJson;
+          throw err;
+        } catch (refreshError) {
+          if ((refreshError as ApiError).status === 401) throw refreshError;
+          handleUnauthorized();
+          const error = new Error('Сессия истекла. Пожалуйста, войдите снова.') as ApiError;
+          error.status = 401;
+          error.body = json;
+          throw error;
+        }
+      }
       handleUnauthorized();
       const error = new Error('Сессия истекла. Пожалуйста, войдите снова.') as ApiError;
       error.status = 401;
       error.body = json;
       throw error;
     }
-    
+
     const error = new Error(json.message || json.error || 'Request failed') as ApiError;
     error.status = response.status;
     error.body = json;
-    
+
     throw error;
   }
-  
+
   return { json };
 };
 
