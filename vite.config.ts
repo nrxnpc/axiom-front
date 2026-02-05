@@ -12,17 +12,13 @@ export default defineConfig({
     },
   },
   build: {
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
         assetFileNames: 'assets/[name][extname]',
         chunkFileNames: 'assets/[name].js',
         entryFileNames: 'assets/[name].js',
-        manualChunks(id) {
-          if (id.includes('node_modules/maplibre-gl') || id.includes('node_modules/@vis.gl/react-maplibre') || id.includes('node_modules/react-map-gl')) {
-            return 'maplibre';
-          }
-        },
+        inlineDynamicImports: true,
       },
     },
   },
