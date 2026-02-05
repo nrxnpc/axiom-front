@@ -6,6 +6,11 @@ import autoprefixer from 'autoprefixer'
 export default defineConfig({
   plugins: [react()],
   base: '/',
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'esnext',
+    },
+  },
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

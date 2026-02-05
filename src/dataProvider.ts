@@ -114,6 +114,10 @@ const httpClient = async (url: string, options: fetchUtils.Options = {}) => {
 
 export const dataProvider: DataProvider = {
   getList: async (resource, params) => {
+    if (resource === 'map') {
+      return { data: [], total: 0 };
+    }
+
     let url: string;
     
     if (resource === 'parts') {

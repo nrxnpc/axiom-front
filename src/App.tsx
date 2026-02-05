@@ -11,6 +11,7 @@ import FlagIcon from '@mui/icons-material/Flag';
 import PeopleIcon from '@mui/icons-material/People';
 import BuildIcon from '@mui/icons-material/Build';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
+import MapIcon from '@mui/icons-material/Map';
 import { authProvider } from './authProvider';
 import { dataProvider } from './dataProvider';
 import { LoginPage } from './LoginPage';
@@ -40,6 +41,7 @@ import { UserMeTest } from './users/UserMeTest';
 import { SupportList } from './support/SupportList';
 import { SupportCreate } from './support/SupportCreate';
 import { SupportShow } from './support/SupportShow';
+import { MapPage } from './map/MapPage';
 import { userStore } from './userStore';
 
 const MyAppBar = () => (
@@ -140,12 +142,6 @@ const AdminApp = () => {
         options={{ label: 'Транзакции' }}
         icon={PaymentIcon}
       />
-      {/* <Resource
-        name="statistics"
-        list={StatisticsList}
-        options={{ label: 'Статистика' }}
-        icon={AssessmentIcon}
-      /> */}
       <Resource
         name="reports"
         list={ReportList}
@@ -168,6 +164,12 @@ const AdminApp = () => {
         show={SupportShow}
         options={{ label: 'Поддержка' }}
         icon={SupportAgentIcon}
+      />
+      <Resource
+        name="map"
+        list={MapPage}
+        options={{ label: 'Карта' }}
+        icon={MapIcon}
       />
       <CustomRoutes>
         <Route path="/user-me-test" element={<UserMeTest />} />
