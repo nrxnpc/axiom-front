@@ -13,6 +13,12 @@ export const osmMapStyle = {
       id: 'osm',
       type: 'raster' as const,
       source: 'osm',
+      paint: {
+        'raster-opacity': 0.9,
+        'raster-saturation': 0.2,
+        'raster-brightness-min': 0.4,
+        'raster-brightness-max': 0.9,
+      },
     },
   ],
 };
