@@ -1,4 +1,8 @@
 import type { HeatPoint } from './mockData';
+import { dateDaysAgo } from './dateRange';
+import type { DateRange } from './dateRange';
+
+type PointWithDate = { lat: number; lng: number; weight: number; date: string };
 
 const CITIES: Array<{ lat: number; lng: number; count: number; spread: number }> = [
   { lat: 55.7558, lng: 37.6173, count: 78, spread: 0.045 },
@@ -63,19 +67,26 @@ function generateCityPoints(
   lat: number,
   lng: number,
   count: number,
-  spread: number
-): HeatPoint[] {
-  const points: HeatPoint[] = [];
+  spread: number,
+  daysBack: number
+): PointWithDate[] {
+  const points: PointWithDate[] = [];
   for (let i = 0; i < count; i++) {
     const latOffset = randomInRange(-spread, spread);
     const lngOffset = randomInRange(-spread, spread);
     const weight = randomInRange(0.2, 1);
-    points.push([lat + latOffset, lng + lngOffset, weight]);
+    const daysAgo = Math.floor(Math.random() * daysBack);
+    points.push({
+      lat: lat + latOffset,
+      lng: lng + lngOffset,
+      weight,
+      date: dateDaysAgo(daysAgo),
+    });
   }
   return points;
 }
 
-let cached: HeatPoint[] | null = null;
+let cached: PointWithDate[] | null = null;
 
 const SCAN_CITIES: Array<{ lat: number; lng: number; count: number; spread: number }> = [
   { lat: 55.7558, lng: 37.6173, count: 85, spread: 0.042 },
@@ -89,31 +100,39 @@ const SCAN_CITIES: Array<{ lat: number; lng: number; count: number; spread: numb
   { lat: 56.0153, lng: 92.8932, count: 44, spread: 0.032 },
 ];
 
-let cachedScans: HeatPoint[] | null = null;
+const DAYS_BACK = 30;
 
-export function getMockParcelsAll(): HeatPoint[] {
+export function getMockParcelsAll(): PointWithDate[] {
   if (cached) return cached;
   cached = [
-    ...CITIES.flatMap(({ lat, lng, count, spread }) => generateCityPoints(lat, lng, count, spread)),
-    ...MIDDLE_RUSSIA_TOWNS.flatMap(({ lat, lng, count, spread }) => generateCityPoints(lat, lng, count, spread)),
+    ...CITIES.flatMap(({ lat, lng, count, spread }) => generateCityPoints(lat, lng, count, spread, DAYS_BACK)),
+    ...MIDDLE_RUSSIA_TOWNS.flatMap(({ lat, lng, count, spread }) => generateCityPoints(lat, lng, count, spread, DAYS_BACK)),
   ];
   return cached;
 }
 
-export function getMockScansAll(): HeatPoint[] {
+let cachedScans: PointWithDate[] | null = null;
+
+export function getMockScansAll(): PointWithDate[] {
   if (cachedScans) return cachedScans;
   cachedScans = SCAN_CITIES.flatMap(({ lat, lng, count, spread }) =>
-    generateCityPoints(lat, lng, count, spread)
+    generateCityPoints(lat, lng, count, spread, DAYS_BACK)
   );
   return cachedScans;
 }
 
+function isInRange(dateStr: string, range?: DateRange): boolean {
+  if (!range) return true;
+  return dateStr >= range.start && dateStr <= range.end;
+}
+
 export function filterPointsByBounds(
-  points: HeatPoint[],
-  bbox: [number, number, number, number]
+  points: PointWithDate[],
+  bbox: [number, number, number, number],
+  dateRange?: DateRange
 ): HeatPoint[] {
   const [west, south, east, north] = bbox;
-  return points.filter(([lat, lng]) => {
-    return lng >= west && lng <= east && lat >= south && lat <= north;
-  });
+  return points
+    .filter((p) => p.lng >= west && p.lng <= east && p.lat >= south && p.lat <= north && isInRange(p.date, dateRange))
+    .map((p) => [p.lat, p.lng, p.weight] as HeatPoint);
 }

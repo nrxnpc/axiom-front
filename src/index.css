@@ -2,3 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+.maplibregl-popup-close-button {
+  right: 10px !important;
+}
+
