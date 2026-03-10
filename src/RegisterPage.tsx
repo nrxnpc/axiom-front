@@ -63,7 +63,9 @@ const RegisterForm = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.error || 'Ошибка отправки запроса');
+        const msg = (errorData.message || errorData.error || '').toString().toLowerCase();
+        const isBlocked = msg.includes('block') || msg.includes('заблокирован') || errorData.code === 'account_blocked';
+        throw new Error(isBlocked ? 'account is blocked' : (errorData.message || errorData.error || 'Ошибка отправки запроса'));
       }
 
       setRequestData({
@@ -109,6 +111,12 @@ const RegisterForm = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        const msg = (errorData.message || errorData.error || '').toString().toLowerCase();
+        const isBlocked = msg.includes('block') || msg.includes('заблокирован') || errorData.code === 'account_blocked';
+        if (isBlocked) {
+          setError('account is blocked');
+          return;
+        }
         const newAttempts = attemptsLeft - 1;
         setAttemptsLeft(newAttempts);
         if (newAttempts <= 0) {

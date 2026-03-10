@@ -174,7 +174,12 @@ export const authProvider: AuthProvider = {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || 'Неверный email или пароль');
+      const msg = (errorData.message || errorData.error || '').toString().toLowerCase();
+      const isBlocked = msg.includes('block') || msg.includes('заблокирован') || errorData.code === 'account_blocked';
+      if (isBlocked) {
+        throw new Error('account is blocked');
+      }
+      throw new Error('invalid creds');
     }
 
     const data = await response.json() as LoginResponse;

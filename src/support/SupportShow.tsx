@@ -17,6 +17,7 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import { API_URL, API_KEY } from '../config';
 import { SupportMessageWithSender, GetMessagesParams } from '../types';
 import { FileUploadButton, FilePreview } from '../components/FileUploadButton';
+import { isOperatorOrAdmin } from '../utils/roleUtils';
 
 const StatusChip = ({ status }: { status: string }) => {
   const getColor = () => {
@@ -119,7 +120,7 @@ const AuthorizedImage = ({
 };
 
 const MessageBubble = ({ message }: { message: SupportMessageWithSender }) => {
-  const isOperator = message.senderRole === 'admin' || message.senderRole === 'operator';
+  const isOperator = isOperatorOrAdmin(message.senderRole);
   
   const getFullUrl = (url: string): string => {
     if (url.startsWith('http://') || url.startsWith('https://')) {

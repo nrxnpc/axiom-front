@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Admin, Layout, AppBar, TitlePortal, Resource, CustomRoutes } from 'react-admin';
 import { Route, RouterProvider, createBrowserRouter } from 'react-router-dom';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
@@ -42,7 +42,7 @@ import { SupportList } from './support/SupportList';
 import { SupportCreate } from './support/SupportCreate';
 import { SupportShow } from './support/SupportShow';
 import { MapPage } from './map/MapPage';
-import { userStore } from './userStore';
+import { useRoleCheck } from './hooks/useRoleCheck';
 
 const MyAppBar = () => (
   <AppBar>
@@ -53,17 +53,9 @@ const MyAppBar = () => (
 const MyLayout = (props: React.ComponentProps<typeof Layout>) => <Layout {...props} appBar={MyAppBar} />;
 
 const AdminApp = () => {
-  const [isSuperuser, setIsSuperuser] = useState(false);
+  const { canAccessUsers: canAccessUsersSection } = useRoleCheck();
 
   useEffect(() => {
-    const updateRole = (user: ReturnType<typeof userStore.getUser>) => {
-      setIsSuperuser(user?.role === 'superuser');
-    };
-
-    updateRole(userStore.getUser());
-
-    const unsubscribe = userStore.subscribe(updateRole);
-
     const checkAfterAuth = async () => {
       try {
         if (authProvider && typeof authProvider.getIdentity === 'function') {
@@ -72,12 +64,7 @@ const AdminApp = () => {
       } catch {
       }
     };
-    
     checkAfterAuth();
-
-    return () => {
-      unsubscribe();
-    };
   }, []);
 
   return (
@@ -149,7 +136,7 @@ const AdminApp = () => {
         options={{ label: 'Репорты' }}
         icon={FlagIcon}
       />
-      {isSuperuser && (
+      {canAccessUsersSection && (
         <Resource
           name="admin/users"
           list={UserList}
