@@ -88,6 +88,28 @@ export async function fetchOrdersByBounds(
   return mockFetchOrders(bbox, dateRange);
 }
 
+export async function fetchOrderByOrderNumber(orderNumber: string): Promise<MapOrder | null> {
+  const q = orderNumber.trim();
+  if (!q) return null;
+  if (MAP_API_BASE) {
+    const res = await fetch(
+      `${MAP_API_BASE}/orders/by-number?${new URLSearchParams({ orderNumber: q })}`
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('Map API: ' + res.status);
+    return res.json();
+  }
+  await new Promise((r) => setTimeout(r, MOCK_ORDER_DELAY_MS));
+  const res = await fetch(`${import.meta.env.BASE_URL}mocks/map/orders.json`);
+  if (!res.ok) throw new Error('Map API: ' + res.status);
+  const data = (await res.json()) as MapOrder[];
+  return (
+    data.find((o) => o.orderNumber === q) ??
+    data.find((o) => o.orderNumber.toLowerCase() === q.toLowerCase()) ??
+    null
+  );
+}
+
 export async function fetchDeliveryByBounds(
   bbox: [number, number, number, number],
   dateRange?: DateRange

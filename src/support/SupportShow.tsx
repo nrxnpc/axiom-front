@@ -17,7 +17,10 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import { API_URL, API_KEY } from '../config';
 import { SupportMessageWithSender, GetMessagesParams } from '../types';
 import { FileUploadButton, FilePreview } from '../components/FileUploadButton';
+import { OrderNumberLink } from '../components/OrderNumberLink';
 import { isOperatorOrAdmin } from '../utils/roleUtils';
+
+const TEST_MAP_ORDER_NUMBER = 'ORD-1001';
 
 const StatusChip = ({ status }: { status: string }) => {
   const getColor = () => {
@@ -600,16 +603,22 @@ export const SupportShow = () => {
               <PriorityChip priority={record.priority} />
             </Box>
           </Box>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Typography variant="caption" color="text.secondary">
-              Пользователь: {record.userName || record.userEmail}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              ID: {record.userId}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Создан: {record.createdAt ? new Date(record.createdAt).toLocaleString('ru-RU') : '-'}
-            </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Typography variant="caption" color="text.secondary">
+                Пользователь: {record.userName || record.userEmail}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                ID: {record.userId}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Создан: {record.createdAt ? new Date(record.createdAt).toLocaleString('ru-RU') : '-'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Заказ на карте:
+              </Typography>
+              <OrderNumberLink orderNumber={TEST_MAP_ORDER_NUMBER} sx={{ fontSize: '0.75rem' }} />
+            </Box>
           </Box>
         </Paper>
 

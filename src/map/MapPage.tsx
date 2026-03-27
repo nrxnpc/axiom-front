@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { Box, Paper, ToggleButtonGroup, ToggleButton, Typography, CircularProgress, TextField } from '@mui/material';
-import Map, { Source, Layer, Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
+import { useSearchParams } from 'react-router-dom';
+import { Box, Paper, ToggleButtonGroup, ToggleButton, Typography, CircularProgress, TextField, Alert } from '@mui/material';
+import MapGL, { Source, Layer, Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { FeatureCollection } from 'geojson';
 import { osmMapStyle } from './osmStyle';
@@ -9,9 +10,11 @@ import {
   fetchDeliveryByBounds,
   fetchScansByBounds,
   fetchOrdersByBounds,
+  fetchOrderByOrderNumber,
 } from './mapApi';
 import type { MapOrder } from './ordersMock';
-import { defaultDateRange, type DateRange } from './dateRange';
+import { defaultDateRange, isDateInRange, type DateRange } from './dateRange';
+import { MAP_ORDER_QUERY_PARAM, getInitialMapModeFromLocation } from './mapOrderNavigation';
 
 type MapMode = 'delivery' | 'scan' | 'orders';
 
@@ -36,13 +39,16 @@ function getBbox(map: { getBounds: BoundsGetter }): [number, number, number, num
 }
 
 export const MapPage = () => {
-  const [mode, setMode] = useState<MapMode>('delivery');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [mode, setMode] = useState<MapMode>(getInitialMapModeFromLocation);
   const [dateRange, setDateRange] = useState<DateRange>(defaultDateRange);
   const [viewportDeliveryPoints, setViewportDeliveryPoints] = useState<HeatPoint[]>([]);
   const [viewportScanPoints, setViewportScanPoints] = useState<HeatPoint[]>([]);
   const [viewportOrders, setViewportOrders] = useState<MapOrder[]>([]);
+  const [pinnedOrder, setPinnedOrder] = useState<MapOrder | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<MapOrder | null>(null);
   const [loading, setLoading] = useState(false);
+  const [orderLinkError, setOrderLinkError] = useState<string | null>(null);
   const deliveryRequestIdRef = useRef(0);
   const scanRequestIdRef = useRef(0);
   const ordersRequestIdRef = useRef(0);
@@ -53,6 +59,13 @@ export const MapPage = () => {
   );
 
   const geojson = useMemo(() => pointsToGeoJSON(heatPoints), [heatPoints]);
+
+  const ordersForMarkers = useMemo(() => {
+    const byId = new Map<string, MapOrder>();
+    for (const o of viewportOrders) byId.set(o.id, o);
+    if (pinnedOrder) byId.set(pinnedOrder.id, pinnedOrder);
+    return [...byId.values()];
+  }, [viewportOrders, pinnedOrder]);
 
   const loadParcelsForView = useCallback((map: { getBounds: BoundsGetter }, range: DateRange) => {
     const id = ++deliveryRequestIdRef.current;
@@ -95,9 +108,62 @@ export const MapPage = () => {
     [mode, dateRange, loadParcelsForView, loadScansForView, loadOrdersForView]
   );
 
+  const orderFromUrl = searchParams.get(MAP_ORDER_QUERY_PARAM)?.trim() ?? '';
+
   useEffect(() => {
-    setSelectedOrder(null);
-  }, [mode]);
+    if (!orderFromUrl) {
+      setPinnedOrder(null);
+      setOrderLinkError(null);
+      return;
+    }
+    let cancelled = false;
+    setOrderLinkError(null);
+    setMode('orders');
+    setLoading(true);
+    fetchOrderByOrderNumber(orderFromUrl)
+      .then((order) => {
+        if (cancelled) return;
+        setLoading(false);
+        if (!order) {
+          setOrderLinkError(`Заказ «${orderFromUrl}» не найден`);
+          setPinnedOrder(null);
+          setSelectedOrder(null);
+          return;
+        }
+        setPinnedOrder(order);
+        setSelectedOrder(order);
+        setDateRange((r) =>
+          isDateInRange(order.date, r) ? r : { start: order.date, end: order.date }
+        );
+        requestAnimationFrame(() => {
+          const map = mapRef.current?.getMap?.();
+          map?.flyTo?.({
+            center: [order.lng, order.lat],
+            zoom: 14,
+            duration: 1200,
+          });
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoading(false);
+        setOrderLinkError('Не удалось загрузить заказ');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderFromUrl]);
+
+  const clearOrderQueryParam = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete(MAP_ORDER_QUERY_PARAM);
+        return next;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
 
   const reloadForCurrentMode = useCallback(() => {
     const map = mapRef.current?.getMap?.();
@@ -117,7 +183,15 @@ export const MapPage = () => {
         <ToggleButtonGroup
           value={mode}
           exclusive
-          onChange={(_, value) => value != null && setMode(value)}
+          onChange={(_, value) => {
+            if (value == null) return;
+            if (value !== mode) {
+              setSelectedOrder(null);
+              setPinnedOrder(null);
+              if (searchParams.get(MAP_ORDER_QUERY_PARAM)) clearOrderQueryParam();
+            }
+            setMode(value);
+          }}
           size="small"
         >
           <ToggleButton value="delivery">Доставка</ToggleButton>
@@ -148,9 +222,14 @@ export const MapPage = () => {
         {loading && (
           <CircularProgress size={20} sx={{ ml: 1 }} />
         )}
+        {orderLinkError && (
+          <Alert severity="warning" sx={{ ml: 1, py: 0 }} onClose={() => setOrderLinkError(null)}>
+            {orderLinkError}
+          </Alert>
+        )}
       </Paper>
       <Box sx={{ flex: 1, minHeight: 0, borderRadius: 1, overflow: 'hidden', position: 'relative' }}>
-        <Map
+        <MapGL
           ref={mapRef}
           initialViewState={{ ...center, zoom: 11 }}
           style={{ width: '100%', height: '100%' }}
@@ -194,7 +273,7 @@ export const MapPage = () => {
             </Source>
           )}
           {mode === 'orders' &&
-            viewportOrders.map((order) => (
+            ordersForMarkers.map((order) => (
               <Marker
                 key={order.id}
                 longitude={order.lng}
@@ -225,7 +304,11 @@ export const MapPage = () => {
               anchor="bottom"
               closeButton
               closeOnClick={false}
-              onClose={() => setSelectedOrder(null)}
+              onClose={() => {
+                setSelectedOrder(null);
+                setPinnedOrder(null);
+                clearOrderQueryParam();
+              }}
               style={{ paddingRight: 28 }}
             >
               <Box sx={{ p: 0.5, minWidth: 180, maxWidth: 280, pr: 3 }}>
@@ -246,7 +329,7 @@ export const MapPage = () => {
               </Box>
             </Popup>
           )}
-        </Map>
+        </MapGL>
       </Box>
     </Box>
   );
