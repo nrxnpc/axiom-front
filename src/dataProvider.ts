@@ -3,6 +3,38 @@ import { API_URL, API_KEY } from './config';
 import { ApiError } from './types';
 import { userStore } from './userStore';
 import { getRefreshPromise } from './authProvider';
+import { readAdminUserRowCache } from './users/adminUserListRowCache';
+
+const ADMIN_USER_EDITABLE_FIELDS = [
+  'name',
+  'phone',
+  'about',
+  'address',
+  'car',
+  'date_of_birth',
+] as const;
+
+function buildAdminUserUpdateBody(data: Record<string, unknown>): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  for (const key of ADMIN_USER_EDITABLE_FIELDS) {
+    if (!(key in data) || data[key] === undefined) continue;
+    let value = data[key];
+    if (key === 'date_of_birth' && value instanceof Date) {
+      value = value.toISOString().slice(0, 10);
+    }
+    body[key] = value;
+  }
+  return body;
+}
+
+function normalizeAdminUserRecord(json: Record<string, unknown>, fallbackId: string | number) {
+  const inner = json.user ?? json.data ?? json;
+  const raw = (
+    inner && typeof inner === 'object' && !Array.isArray(inner) ? inner : {}
+  ) as Record<string, unknown>;
+  const id = raw.user_id ?? raw.id ?? fallbackId;
+  return { ...raw, id } as Record<string, unknown>;
+}
 
 const getAuthToken = (): string => {
   const auth = localStorage.getItem('auth');
@@ -300,6 +332,15 @@ export const dataProvider: DataProvider = {
         },
       };
     }
+
+    if (resource === 'admin/users') {
+      const cached = readAdminUserRowCache(params.id);
+      const merged = {
+        id: params.id,
+        ...(cached || {}),
+      };
+      return { data: merged as any };
+    }
     
     let url = `${API_URL}/${resource}/${params.id}`;
     try {
@@ -434,6 +475,28 @@ export const dataProvider: DataProvider = {
   },
 
   update: async (resource, params) => {
+    if (resource === 'admin/users') {
+      const url = `${API_URL}/admin/users/${params.id}`;
+      const body = buildAdminUserUpdateBody(params.data as Record<string, unknown>);
+      try {
+        const { json } = await httpClient(url, {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        });
+        const merged =
+          json && typeof json === 'object'
+            ? normalizeAdminUserRecord(json as Record<string, unknown>, params.id)
+            : { ...params.data, id: params.id };
+        return { data: merged as any };
+      } catch (error) {
+        const apiError = error as ApiError;
+        if (apiError.isPermissionError) {
+          throw new Error('Нет доступа для редактирования этого ресурса');
+        }
+        throw error;
+      }
+    }
+
     const url = `${API_URL}/${resource}/${params.id}`;
     try {
       const { json } = await httpClient(url, {

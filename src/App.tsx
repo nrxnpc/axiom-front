@@ -37,6 +37,7 @@ import { TransactionList } from './transactions/TransactionList';
 import { ReportList } from './reports/ReportList';
 import { ReportCreate } from './reports/ReportCreate';
 import { UserList } from './users/UserList';
+import { UserEdit } from './users/UserEdit';
 import { UserMeTest } from './users/UserMeTest';
 import { SupportList } from './support/SupportList';
 import { SupportCreate } from './support/SupportCreate';
@@ -140,6 +141,7 @@ const AdminApp = () => {
         <Resource
           name="admin/users"
           list={UserList}
+          edit={UserEdit}
           options={{ label: 'Пользователи' }}
           icon={PeopleIcon}
         />

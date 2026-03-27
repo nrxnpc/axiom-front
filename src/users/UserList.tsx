@@ -6,6 +6,7 @@ import { ListActions } from '../components/ListActions';
 import { useRoleCheck } from '../hooks/useRoleCheck';
 import { isAdminOrSuperuser } from '../utils/roleUtils';
 import { API_URL, API_KEY } from '../config';
+import { stashAdminUserRowForEdit } from './adminUserListRowCache';
 
 const TruncatedIdCell = ({ id }: { id: string }) => {
   const notify = useNotify();
@@ -293,7 +294,12 @@ const UserListContent = () => (
       </>
     }
   >
-    <Datagrid rowClick={false}>
+    <Datagrid
+      rowClick={(id, _resource, record) => {
+        stashAdminUserRowForEdit(id, record as Record<string, unknown>);
+        return 'edit';
+      }}
+    >
       <FunctionField
         source="id"
         label="ID"
@@ -305,6 +311,7 @@ const UserListContent = () => (
         label="Email"
         render={(record: any) => <EmailCopyCell email={record?.email || ''} />}
       />
+      <TextField source="phone" label="Телефон" />
       <TextField source="role" label="Роль" />
       <TextField source="points" label="Баллы" />
       <DateField source="registrationDate" label="Дата регистрации" />
